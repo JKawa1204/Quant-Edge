@@ -364,9 +364,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/StockDetail"
 
-  /stocks/{symbol}/candles:
+  /stocks/{symbol}/candles/{timeframe}:
     get:
-      operationId: getStockCandles
+      operationId: listStockCandles
       tags: [stocks]
       summary: Get OHLCV candle data
       parameters:
@@ -375,17 +375,11 @@ paths:
           required: true
           schema:
             type: string
-        - in: query
+        - in: path
           name: timeframe
+          required: true
           schema:
             type: string
-            enum: [1m, 5m, 15m, 1h, 1d, 1w, 1mo]
-            default: 1d
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 100
       responses:
         "200":
           description: OK
@@ -396,9 +390,9 @@ paths:
                 items:
                   $ref: "#/components/schemas/Candle"
 
-  /stocks/{symbol}/indicators:
+  /stocks/{symbol}/indicators/{timeframe}:
     get:
-      operationId: getStockIndicators
+      operationId: listStockIndicators
       tags: [stocks]
       summary: Get technical indicators
       parameters:
@@ -407,11 +401,11 @@ paths:
           required: true
           schema:
             type: string
-        - in: query
+        - in: path
           name: timeframe
+          required: true
           schema:
             type: string
-            default: 1d
       responses:
         "200":
           description: OK

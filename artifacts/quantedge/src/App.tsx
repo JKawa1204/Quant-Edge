@@ -1,32 +1,88 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/lib/auth";
+
 import NotFound from "@/pages/not-found";
+import { Layout } from "@/components/layout";
 
-const queryClient = new QueryClient();
+// Pages
+import Login from "@/pages/login";
+import Register from "@/pages/register";
+import Dashboard from "@/pages/dashboard";
+import Portfolio from "@/pages/portfolio";
+import Watchlist from "@/pages/watchlist";
+import Signals from "@/pages/signals";
+import Orders from "@/pages/orders";
+import Analytics from "@/pages/analytics";
+import Backtests from "@/pages/backtests";
+import Regime from "@/pages/regime";
+import Research from "@/pages/research";
+import StockDetail from "@/pages/stock-detail";
 
-function Home() {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function ProtectedRoute({ component: Component, ...rest }: any) {
+  const { isAuthenticated } = useAuth();
+  
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
+    <Route
+      {...rest}
+      component={(props) => 
+        isAuthenticated ? (
+          <Layout>
+            <Component {...props} />
+          </Layout>
+        ) : (
+          <Redirect to="/login" />
+        )
+      }
+    />
   );
 }
 
 function Router() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      
+      <Route path="/">
+        {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+      </Route>
+
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/portfolio" component={Portfolio} />
+      <ProtectedRoute path="/watchlist" component={Watchlist} />
+      <ProtectedRoute path="/signals" component={Signals} />
+      <ProtectedRoute path="/orders" component={Orders} />
+      <ProtectedRoute path="/analytics" component={Analytics} />
+      <ProtectedRoute path="/backtests" component={Backtests} />
+      <ProtectedRoute path="/regime" component={Regime} />
+      <ProtectedRoute path="/research" component={Research} />
+      <ProtectedRoute path="/stocks/:symbol" component={StockDetail} />
+      
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
+  // Set dark mode class on document
+  if (typeof window !== 'undefined') {
+    document.documentElement.classList.add('dark');
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
