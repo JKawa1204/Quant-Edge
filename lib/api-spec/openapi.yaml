@@ -1,22 +1,51 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: QUANTEDGE API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: dashboard
+    description: Dashboard data
+  - name: portfolio
+    description: Portfolio management
+  - name: holdings
+    description: Portfolio holdings
+  - name: watchlist
+    description: Watchlists
+  - name: stocks
+    description: Stock data and research
+  - name: forecasts
+    description: ML forecasting
+  - name: signals
+    description: Trading signals
+  - name: orders
+    description: Paper trading orders
+  - name: analytics
+    description: Analytics and research
+  - name: backtests
+    description: Backtesting engine
+  - name: regime
+    description: Market regime detection
+  - name: optimization
+    description: Portfolio optimization
+  - name: ai
+    description: AI commentary
+  - name: market
+    description: Market overview
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +53,1402 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Unauthorized
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: OK
+
+  # DASHBOARD
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get executive dashboard summary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/market-overview:
+    get:
+      operationId: getMarketOverview
+      tags: [dashboard]
+      summary: Get market overview data
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketOverview"
+
+  # PORTFOLIO
+  /portfolio:
+    get:
+      operationId: getPortfolio
+      tags: [portfolio]
+      summary: Get user portfolio
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Portfolio"
+
+  /portfolio/health:
+    get:
+      operationId: getPortfolioHealth
+      tags: [portfolio]
+      summary: Get portfolio health score
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioHealth"
+
+  /portfolio/performance:
+    get:
+      operationId: getPortfolioPerformance
+      tags: [portfolio]
+      summary: Get portfolio performance over time
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortfolioSnapshot"
+
+  /portfolio/risk:
+    get:
+      operationId: getPortfolioRisk
+      tags: [portfolio]
+      summary: Get portfolio risk metrics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskMetrics"
+
+  /portfolio/optimization:
+    get:
+      operationId: getPortfolioOptimization
+      tags: [portfolio]
+      summary: Get portfolio optimization suggestions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptimizationResult"
+
+  # HOLDINGS
+  /holdings:
+    get:
+      operationId: getHoldings
+      tags: [holdings]
+      summary: List portfolio holdings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Holding"
+
+  # WATCHLISTS
+  /watchlists:
+    get:
+      operationId: getWatchlists
+      tags: [watchlist]
+      summary: List all watchlists
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Watchlist"
+    post:
+      operationId: createWatchlist
+      tags: [watchlist]
+      summary: Create a watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watchlist"
+
+  /watchlists/{id}:
+    delete:
+      operationId: deleteWatchlist
+      tags: [watchlist]
+      summary: Delete a watchlist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: No content
+
+  /watchlists/{id}/stocks:
+    post:
+      operationId: addToWatchlist
+      tags: [watchlist]
+      summary: Add stock to watchlist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistStockInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistStock"
+
+  /watchlists/{id}/stocks/{symbol}:
+    delete:
+      operationId: removeFromWatchlist
+      tags: [watchlist]
+      summary: Remove stock from watchlist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No content
+
+  # STOCKS
+  /stocks/search:
+    get:
+      operationId: searchStocks
+      tags: [stocks]
+      summary: Search stocks
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockSearchResult"
+
+  /stocks/{symbol}:
+    get:
+      operationId: getStockDetail
+      tags: [stocks]
+      summary: Get stock research page data
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDetail"
+
+  /stocks/{symbol}/candles:
+    get:
+      operationId: getStockCandles
+      tags: [stocks]
+      summary: Get OHLCV candle data
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: timeframe
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 1d, 1w, 1mo]
+            default: 1d
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candle"
+
+  /stocks/{symbol}/indicators:
+    get:
+      operationId: getStockIndicators
+      tags: [stocks]
+      summary: Get technical indicators
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: timeframe
+          schema:
+            type: string
+            default: 1d
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalIndicators"
+
+  # FORECASTS
+  /forecasts/{symbol}:
+    get:
+      operationId: getForecasts
+      tags: [forecasts]
+      summary: Get all model forecasts for a symbol
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastBundle"
+
+  /forecasts/{symbol}/run:
+    post:
+      operationId: runForecast
+      tags: [forecasts]
+      summary: Trigger forecast computation for symbol
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastBundle"
+
+  /forecasts/analytics/comparison:
+    get:
+      operationId: getForecastComparison
+      tags: [forecasts]
+      summary: Compare model accuracy metrics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastComparison"
+
+  # SIGNALS
+  /signals:
+    get:
+      operationId: getSignals
+      tags: [signals]
+      summary: Get active trading signals
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Signal"
+
+  /signals/{id}/explain:
+    get:
+      operationId: explainSignal
+      tags: [signals]
+      summary: Get explainability breakdown for a signal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalExplanation"
+
+  # ORDERS
+  /orders:
+    get:
+      operationId: getOrders
+      tags: [orders]
+      summary: Get paper trading orders
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [open, executed, rejected, all]
+            default: all
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: placeOrder
+      tags: [orders]
+      summary: Place paper trade order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  # MARKET REGIME
+  /regime/current:
+    get:
+      operationId: getCurrentRegime
+      tags: [regime]
+      summary: Get current market regime
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketRegime"
+
+  /regime/history:
+    get:
+      operationId: getRegimeHistory
+      tags: [regime]
+      summary: Get regime history timeline
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegimeHistoryEntry"
+
+  # ANALYTICS
+  /analytics/portfolio:
+    get:
+      operationId: getPortfolioAnalytics
+      tags: [analytics]
+      summary: Get full portfolio analytics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioAnalytics"
+
+  /analytics/trading:
+    get:
+      operationId: getTradingAnalytics
+      tags: [analytics]
+      summary: Get strategy comparison analytics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradingAnalytics"
+
+  /analytics/correlation:
+    get:
+      operationId: getCorrelationAnalytics
+      tags: [analytics]
+      summary: Get correlation matrix and sector analytics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrelationAnalytics"
+
+  # BACKTESTING
+  /backtests:
+    get:
+      operationId: getBacktests
+      tags: [backtests]
+      summary: List saved backtests
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Backtest"
+    post:
+      operationId: runBacktest
+      tags: [backtests]
+      summary: Run a new backtest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BacktestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Backtest"
+
+  /backtests/{id}:
+    get:
+      operationId: getBacktest
+      tags: [backtests]
+      summary: Get backtest detail with full results
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BacktestDetail"
+
+  # AI COMMENTARY
+  /ai/commentary:
+    post:
+      operationId: getAiCommentary
+      tags: [ai]
+      summary: Get AI commentary for portfolio or stock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiCommentaryInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCommentary"
+
+  /ai/signal-explanation:
+    post:
+      operationId: getAiSignalExplanation
+      tags: [ai]
+      summary: Get AI natural language explanation for a signal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSignalInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCommentary"
+
+  # MARKET DATA
+  /market/indices:
+    get:
+      operationId: getMarketIndices
+      tags: [market]
+      summary: Get NIFTY 50, SENSEX live data
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketIndex"
+
+  /market/movers:
+    get:
+      operationId: getMarketMovers
+      tags: [market]
+      summary: Get top gainers, losers, most active
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketMovers"
+
+  /market/sectors:
+    get:
+      operationId: getSectorPerformance
+      tags: [market]
+      summary: Get sector-wise performance
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SectorPerformance"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    # AUTH
+    RegisterInput:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string }
+        password: { type: string }
+        name: { type: string }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, email, name, createdAt]
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+        createdAt: { type: string }
+
+    # DASHBOARD
+    DashboardSummary:
+      type: object
+      required: [portfolioValue, todayPnl, overallPnl, availableCash, returnPct, healthScore, regime, forecastConfidence, bestModel, bestStrategy, activeSignalsCount]
+      properties:
+        portfolioValue: { type: number }
+        todayPnl: { type: number }
+        todayPnlPct: { type: number }
+        overallPnl: { type: number }
+        overallPnlPct: { type: number }
+        availableCash: { type: number }
+        returnPct: { type: number }
+        healthScore: { type: number }
+        regime: { type: string }
+        forecastConfidence: { type: number }
+        bestModel: { type: string }
+        bestStrategy: { type: string }
+        activeSignalsCount: { type: integer }
+
+    MarketOverview:
+      type: object
+      required: [indices, topGainers, topLosers, mostActive]
+      properties:
+        indices:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketIndex"
+        topGainers:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+        topLosers:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+        mostActive:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+
+    # PORTFOLIO
+    Portfolio:
+      type: object
+      required: [id, userId, name, cash, totalValue, totalPnl, returnPct, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        name: { type: string }
+        cash: { type: number }
+        totalValue: { type: number }
+        totalPnl: { type: number }
+        returnPct: { type: number }
+        createdAt: { type: string }
+
+    PortfolioHealth:
+      type: object
+      required: [score, grade, diversificationScore, volatilityScore, riskScore, concentrationRisk, suggestions]
+      properties:
+        score: { type: number }
+        grade: { type: string }
+        diversificationScore: { type: number }
+        volatilityScore: { type: number }
+        riskScore: { type: number }
+        concentrationRisk: { type: number }
+        suggestions:
+          type: array
+          items:
+            type: string
+
+    PortfolioSnapshot:
+      type: object
+      required: [date, value, cash, invested, pnl]
+      properties:
+        date: { type: string }
+        value: { type: number }
+        cash: { type: number }
+        invested: { type: number }
+        pnl: { type: number }
+
+    RiskMetrics:
+      type: object
+      required: [beta, volatility, var95, cvar95, sharpeRatio, sortinoRatio, maxDrawdown, downsideRisk]
+      properties:
+        beta: { type: number }
+        volatility: { type: number }
+        var95: { type: number }
+        cvar95: { type: number }
+        sharpeRatio: { type: number }
+        sortinoRatio: { type: number }
+        maxDrawdown: { type: number }
+        downsideRisk: { type: number }
+
+    OptimizationResult:
+      type: object
+      required: [method, allocations, expectedReturn, expectedRisk, sharpeRatio, rebalancingSuggestions]
+      properties:
+        method: { type: string }
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllocationEntry"
+        expectedReturn: { type: number }
+        expectedRisk: { type: number }
+        sharpeRatio: { type: number }
+        rebalancingSuggestions:
+          type: array
+          items:
+            type: string
+
+    AllocationEntry:
+      type: object
+      required: [symbol, currentWeight, targetWeight, action, amount]
+      properties:
+        symbol: { type: string }
+        currentWeight: { type: number }
+        targetWeight: { type: number }
+        action: { type: string }
+        amount: { type: number }
+
+    # HOLDINGS
+    Holding:
+      type: object
+      required: [id, symbol, company, sector, quantity, buyPrice, currentPrice, pnl, returnPct, allocationPct, riskContribution, forecastPrice, recommendation]
+      properties:
+        id: { type: integer }
+        symbol: { type: string }
+        company: { type: string }
+        sector: { type: string }
+        quantity: { type: integer }
+        buyPrice: { type: number }
+        currentPrice: { type: number }
+        pnl: { type: number }
+        returnPct: { type: number }
+        allocationPct: { type: number }
+        riskContribution: { type: number }
+        forecastPrice: { type: number }
+        recommendation: { type: string }
+
+    # WATCHLIST
+    Watchlist:
+      type: object
+      required: [id, name, stocks, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        stocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchlistStock"
+        createdAt: { type: string }
+
+    WatchlistInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+
+    WatchlistStockInput:
+      type: object
+      required: [symbol]
+      properties:
+        symbol: { type: string }
+
+    WatchlistStock:
+      type: object
+      required: [id, symbol, company, price, change, changePct, volume, forecastDirection, signal, confidence]
+      properties:
+        id: { type: integer }
+        symbol: { type: string }
+        company: { type: string }
+        price: { type: number }
+        change: { type: number }
+        changePct: { type: number }
+        volume: { type: number }
+        forecastDirection: { type: string }
+        signal: { type: string }
+        confidence: { type: number }
+
+    # STOCKS
+    StockSearchResult:
+      type: object
+      required: [symbol, company, sector, exchange]
+      properties:
+        symbol: { type: string }
+        company: { type: string }
+        sector: { type: string }
+        exchange: { type: string }
+
+    StockDetail:
+      type: object
+      required: [symbol, company, sector, industry, description, marketCap, eps, pe, bookValue, dividendYield, roe, roa, debtToEquity, revenue, netProfit, operatingMargin, freeCashFlow, week52High, week52Low, beta, volatility, avgVolume, currentVolume, currentPrice, change, changePct]
+      properties:
+        symbol: { type: string }
+        company: { type: string }
+        sector: { type: string }
+        industry: { type: string }
+        description: { type: string }
+        marketCap: { type: number }
+        eps: { type: number }
+        pe: { type: number }
+        bookValue: { type: number }
+        dividendYield: { type: number }
+        roe: { type: number }
+        roa: { type: number }
+        debtToEquity: { type: number }
+        revenue: { type: number }
+        netProfit: { type: number }
+        operatingMargin: { type: number }
+        freeCashFlow: { type: number }
+        week52High: { type: number }
+        week52Low: { type: number }
+        beta: { type: number }
+        volatility: { type: number }
+        avgVolume: { type: number }
+        currentVolume: { type: number }
+        currentPrice: { type: number }
+        change: { type: number }
+        changePct: { type: number }
+
+    StockQuote:
+      type: object
+      required: [symbol, company, price, change, changePct, volume]
+      properties:
+        symbol: { type: string }
+        company: { type: string }
+        price: { type: number }
+        change: { type: number }
+        changePct: { type: number }
+        volume: { type: number }
+
+    Candle:
+      type: object
+      required: [time, open, high, low, close, volume]
+      properties:
+        time: { type: string }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        volume: { type: number }
+
+    TechnicalIndicators:
+      type: object
+      required: [sma20, sma50, ema20, rsi, macd, macdSignal, macdHistogram, bbUpper, bbMiddle, bbLower, vwap]
+      properties:
+        sma20: { type: number }
+        sma50: { type: number }
+        ema20: { type: number }
+        rsi: { type: number }
+        macd: { type: number }
+        macdSignal: { type: number }
+        macdHistogram: { type: number }
+        bbUpper: { type: number }
+        bbMiddle: { type: number }
+        bbLower: { type: number }
+        vwap: { type: number }
+
+    # FORECASTS
+    ModelForecast:
+      type: object
+      required: [model, nextDay, nextWeek, nextMonth, confidence, direction, rmse, mae, mape, r2, directionalAccuracy]
+      properties:
+        model: { type: string }
+        nextDay: { type: number }
+        nextWeek: { type: number }
+        nextMonth: { type: number }
+        confidence: { type: number }
+        direction: { type: string }
+        rmse: { type: number }
+        mae: { type: number }
+        mape: { type: number }
+        r2: { type: number }
+        directionalAccuracy: { type: number }
+        forecastPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastPoint"
+
+    ForecastPoint:
+      type: object
+      required: [date, value, lower, upper]
+      properties:
+        date: { type: string }
+        value: { type: number }
+        lower: { type: number }
+        upper: { type: number }
+
+    ForecastBundle:
+      type: object
+      required: [symbol, currentPrice, arima, lstm, xgboost, ensemble, modelAgreement, regimeAdjusted, updatedAt]
+      properties:
+        symbol: { type: string }
+        currentPrice: { type: number }
+        arima:
+          $ref: "#/components/schemas/ModelForecast"
+        lstm:
+          $ref: "#/components/schemas/ModelForecast"
+        xgboost:
+          $ref: "#/components/schemas/ModelForecast"
+        ensemble:
+          $ref: "#/components/schemas/ModelForecast"
+        modelAgreement: { type: number }
+        regimeAdjusted: { type: boolean }
+        updatedAt: { type: string }
+
+    ForecastComparison:
+      type: object
+      required: [stocks, bestModel, metrics]
+      properties:
+        stocks:
+          type: array
+          items:
+            type: string
+        bestModel: { type: string }
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelAccuracyMetric"
+
+    ModelAccuracyMetric:
+      type: object
+      required: [model, avgRmse, avgMae, avgMape, avgR2, avgDirectionalAccuracy, winRate]
+      properties:
+        model: { type: string }
+        avgRmse: { type: number }
+        avgMae: { type: number }
+        avgMape: { type: number }
+        avgR2: { type: number }
+        avgDirectionalAccuracy: { type: number }
+        winRate: { type: number }
+
+    # SIGNALS
+    Signal:
+      type: object
+      required: [id, symbol, company, action, confidence, forecastReturn, regime, createdAt, status]
+      properties:
+        id: { type: integer }
+        symbol: { type: string }
+        company: { type: string }
+        action: { type: string }
+        confidence: { type: number }
+        forecastReturn: { type: number }
+        regime: { type: string }
+        createdAt: { type: string }
+        status: { type: string }
+        arimaContribution: { type: ["number", "null"] }
+        lstmContribution: { type: ["number", "null"] }
+        xgboostContribution: { type: ["number", "null"] }
+        regimeContribution: { type: ["number", "null"] }
+
+    SignalExplanation:
+      type: object
+      required: [signalId, symbol, action, arimaContribution, lstmContribution, xgboostContribution, regimeContribution, optimizationContribution, confidenceScore, reasoning]
+      properties:
+        signalId: { type: integer }
+        symbol: { type: string }
+        action: { type: string }
+        arimaContribution: { type: number }
+        lstmContribution: { type: number }
+        xgboostContribution: { type: number }
+        regimeContribution: { type: number }
+        optimizationContribution: { type: number }
+        confidenceScore: { type: number }
+        reasoning: { type: string }
+
+    # ORDERS
+    Order:
+      type: object
+      required: [id, symbol, company, side, quantity, price, status, signalSource, executedAt, createdAt]
+      properties:
+        id: { type: integer }
+        symbol: { type: string }
+        company: { type: string }
+        side: { type: string }
+        quantity: { type: integer }
+        price: { type: number }
+        status: { type: string }
+        signalSource: { type: string }
+        executedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    OrderInput:
+      type: object
+      required: [symbol, side, quantity, price, signalSource]
+      properties:
+        symbol: { type: string }
+        side: { type: string }
+        quantity: { type: integer }
+        price: { type: number }
+        signalSource: { type: string }
+
+    # REGIME
+    MarketRegime:
+      type: object
+      required: [regime, confidence, description, allocationStrategy, updatedAt]
+      properties:
+        regime: { type: string }
+        confidence: { type: number }
+        description: { type: string }
+        allocationStrategy: { type: string }
+        updatedAt: { type: string }
+
+    RegimeHistoryEntry:
+      type: object
+      required: [date, regime, confidence]
+      properties:
+        date: { type: string }
+        regime: { type: string }
+        confidence: { type: number }
+
+    # ANALYTICS
+    PortfolioAnalytics:
+      type: object
+      required: [returns, volatility, sharpeRatio, sortinoRatio, maxDrawdown, cagr, growthCurve, efficientFrontier, allocationHistory]
+      properties:
+        returns: { type: number }
+        volatility: { type: number }
+        sharpeRatio: { type: number }
+        sortinoRatio: { type: number }
+        maxDrawdown: { type: number }
+        cagr: { type: number }
+        growthCurve:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+        efficientFrontier:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrontierPoint"
+        allocationHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+
+    TradingAnalytics:
+      type: object
+      required: [strategies]
+      properties:
+        strategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/StrategyMetrics"
+
+    StrategyMetrics:
+      type: object
+      required: [name, totalReturn, winRate, profitFactor, sharpeRatio, maxDrawdown, tradesCount]
+      properties:
+        name: { type: string }
+        totalReturn: { type: number }
+        winRate: { type: number }
+        profitFactor: { type: number }
+        sharpeRatio: { type: number }
+        maxDrawdown: { type: number }
+        tradesCount: { type: integer }
+
+    CorrelationAnalytics:
+      type: object
+      required: [symbols, matrix, sectorExposure, diversificationScore]
+      properties:
+        symbols:
+          type: array
+          items:
+            type: string
+        matrix:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        sectorExposure:
+          type: array
+          items:
+            $ref: "#/components/schemas/SectorEntry"
+        diversificationScore: { type: number }
+
+    SectorEntry:
+      type: object
+      required: [sector, weight]
+      properties:
+        sector: { type: string }
+        weight: { type: number }
+
+    TimeSeriesPoint:
+      type: object
+      required: [date, value]
+      properties:
+        date: { type: string }
+        value: { type: number }
+
+    FrontierPoint:
+      type: object
+      required: [risk, return]
+      properties:
+        risk: { type: number }
+        return: { type: number }
+
+    # BACKTESTING
+    Backtest:
+      type: object
+      required: [id, name, symbols, startDate, endDate, forecastModel, optimizationMethod, status, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        symbols:
+          type: array
+          items:
+            type: string
+        startDate: { type: string }
+        endDate: { type: string }
+        forecastModel: { type: string }
+        optimizationMethod: { type: string }
+        status: { type: string }
+        cagr: { type: ["number", "null"] }
+        sharpeRatio: { type: ["number", "null"] }
+        maxDrawdown: { type: ["number", "null"] }
+        alpha: { type: ["number", "null"] }
+        createdAt: { type: string }
+
+    BacktestInput:
+      type: object
+      required: [name, symbols, startDate, endDate, forecastModel, optimizationMethod]
+      properties:
+        name: { type: string }
+        symbols:
+          type: array
+          items:
+            type: string
+        startDate: { type: string }
+        endDate: { type: string }
+        forecastModel: { type: string }
+        optimizationMethod: { type: string }
+
+    BacktestDetail:
+      type: object
+      required: [id, name, metrics, equityCurve, drawdownCurve, monthlyReturns, tradeLogs, benchmarkComparison]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        metrics:
+          $ref: "#/components/schemas/BacktestMetrics"
+        equityCurve:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+        drawdownCurve:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+        monthlyReturns:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyReturn"
+        tradeLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/TradeLog"
+        benchmarkComparison:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+
+    BacktestMetrics:
+      type: object
+      required: [totalReturn, cagr, sharpeRatio, sortinoRatio, maxDrawdown, alpha, beta, informationRatio, trackingError, winRate, profitFactor, totalTrades]
+      properties:
+        totalReturn: { type: number }
+        cagr: { type: number }
+        sharpeRatio: { type: number }
+        sortinoRatio: { type: number }
+        maxDrawdown: { type: number }
+        alpha: { type: number }
+        beta: { type: number }
+        informationRatio: { type: number }
+        trackingError: { type: number }
+        winRate: { type: number }
+        profitFactor: { type: number }
+        totalTrades: { type: integer }
+
+    MonthlyReturn:
+      type: object
+      required: [month, year, return]
+      properties:
+        month: { type: integer }
+        year: { type: integer }
+        return: { type: number }
+
+    TradeLog:
+      type: object
+      required: [date, symbol, side, quantity, price, pnl]
+      properties:
+        date: { type: string }
+        symbol: { type: string }
+        side: { type: string }
+        quantity: { type: integer }
+        price: { type: number }
+        pnl: { type: number }
+
+    # AI
+    AiCommentaryInput:
+      type: object
+      required: [type, context]
+      properties:
+        type: { type: string }
+        symbol: { type: ["string", "null"] }
+        context: { type: string }
+
+    AiSignalInput:
+      type: object
+      required: [signalId, symbol, action, metrics]
+      properties:
+        signalId: { type: integer }
+        symbol: { type: string }
+        action: { type: string }
+        metrics: { type: string }
+
+    AiCommentary:
+      type: object
+      required: [text, generatedAt]
+      properties:
+        text: { type: string }
+        generatedAt: { type: string }
+
+    # MARKET
+    MarketIndex:
+      type: object
+      required: [name, symbol, value, change, changePct, updatedAt]
+      properties:
+        name: { type: string }
+        symbol: { type: string }
+        value: { type: number }
+        change: { type: number }
+        changePct: { type: number }
+        updatedAt: { type: string }
+
+    MarketMovers:
+      type: object
+      required: [gainers, losers, mostActive]
+      properties:
+        gainers:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+        losers:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+        mostActive:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockQuote"
+
+    SectorPerformance:
+      type: object
+      required: [sector, change, changePct, topStock]
+      properties:
+        sector: { type: string }
+        change: { type: number }
+        changePct: { type: number }
+        topStock: { type: string }
