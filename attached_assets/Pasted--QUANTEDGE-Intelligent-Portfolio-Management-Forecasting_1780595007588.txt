@@ -1,0 +1,1105 @@
+# QUANTEDGE
+
+## Intelligent Portfolio Management, Forecasting, Optimization and Automated Paper Trading Platform
+
+# Project Objective
+
+Build a complete institutional-style quantitative investment platform from scratch.
+
+This is not a stock prediction website.
+
+This is a full-stack quantitative research, portfolio management, risk analytics, forecasting, optimization, explainability, and automated paper trading platform.
+
+The application should resemble a combination of:
+
+* Zerodha Kite
+* TradingView
+* Groww
+* Bloomberg Terminal (simplified)
+* QuantConnect (simplified)
+
+The final product should be visually impressive, technically sound, production-ready, and suitable for a final-year engineering project.
+
+---
+
+# Core Workflow
+
+The entire platform should follow the pipeline below:
+
+Market Data Collection
+↓
+Feature Engineering
+↓
+ARIMA Forecasting
+↓
+LSTM Forecasting
+↓
+XGBoost Forecasting
+↓
+Adaptive Ensemble Forecasting
+↓
+Market Regime Detection
+↓
+Forecast Confidence Scoring
+↓
+Portfolio Optimization
+↓
+Signal Generation
+↓
+Paper Trade Execution
+↓
+Portfolio Monitoring
+↓
+Analytics & Research
+↓
+AI Explanations
+
+---
+
+# Technology Stack
+
+Frontend:
+
+* React
+* TypeScript
+* TailwindCSS
+* TradingView Charts
+* Recharts
+* WebSockets
+
+Backend:
+
+* FastAPI
+* Python
+
+Database:
+
+* PostgreSQL
+
+Machine Learning:
+
+* ARIMA
+* LSTM
+* XGBoost
+
+Optimization:
+
+* Markowitz
+* Hierarchical Risk Parity (HRP)
+
+AI Layer:
+
+* Gemini API
+
+Live Market Data:
+
+* Upstox API
+* Upstox WebSocket Feed
+
+Deployment:
+
+* Docker
+* Docker Compose
+
+---
+
+# Production Ready Requirements
+
+The application must work:
+
+* Locally
+* VPS
+* Cloud Server
+
+Generate:
+
+* README.md
+* Installation Guide
+* Deployment Guide
+* Dockerfile
+* docker-compose.yml
+* .env.example
+
+All secrets must use environment variables.
+
+Examples:
+
+DATABASE_URL=
+JWT_SECRET=
+UPSTOX_API_KEY=
+UPSTOX_API_SECRET=
+UPSTOX_REDIRECT_URI=
+GEMINI_API_KEY=
+
+No hardcoded credentials.
+
+---
+
+# Authentication
+
+Remove:
+
+* Google Login
+* Google OAuth
+* Social Login
+
+Use:
+
+* Signup
+* Login
+* Forgot Password
+* Reset Password
+
+Authentication:
+
+* JWT Based
+
+---
+
+# Database Design
+
+PostgreSQL should store:
+
+Users
+
+Portfolios
+
+Holdings
+
+Watchlists
+
+Orders
+
+Trades
+
+Forecasts
+
+Signals
+
+Market Data
+
+Backtests
+
+Notifications
+
+Comments
+
+Analytics
+
+Research Results
+
+Portfolio Snapshots
+
+Create proper schema design and migrations.
+
+---
+
+# Live Market Data
+
+Use Upstox API.
+
+Implement WebSocket-based live updates.
+
+Features:
+
+* Live Stock Prices
+* Live Watchlists
+* Live Portfolio Updates
+* Live PnL Updates
+* Live Signal Updates
+
+No page refreshes.
+
+Everything should update in real time.
+
+---
+
+# Dashboard
+
+After login, users should see:
+
+Portfolio Value
+
+Today's PnL
+
+Overall PnL
+
+Available Cash
+
+Portfolio Return %
+
+Portfolio Health Score
+
+Current Market Regime
+
+Forecast Confidence
+
+Best Performing Model
+
+Best Performing Strategy
+
+Active Signals
+
+Market Overview
+
+---
+
+# Market Overview
+
+Display:
+
+NIFTY 50
+
+SENSEX
+
+Top Gainers
+
+Top Losers
+
+Most Active Stocks
+
+Sector Performance
+
+---
+
+# Holdings
+
+Display:
+
+Symbol
+
+Company
+
+Quantity
+
+Buy Price
+
+Current Price
+
+Profit/Loss
+
+Return %
+
+Forecast Price
+
+Recommendation
+
+Allocation %
+
+Risk Contribution
+
+---
+
+# Watchlist
+
+Users can:
+
+Add Stocks
+
+Remove Stocks
+
+Search Stocks
+
+Create Multiple Watchlists
+
+Show:
+
+Price
+
+Volume
+
+Daily Change
+
+Forecast Direction
+
+Signal
+
+Confidence
+
+---
+
+# Stock Research Page
+
+Every stock must have its own research page.
+
+---
+
+# Company Information
+
+Show:
+
+Company Name
+
+Sector
+
+Industry
+
+Business Description
+
+---
+
+# Financial Metrics
+
+Display:
+
+Market Cap
+
+EPS
+
+P/E Ratio
+
+Book Value
+
+Dividend Yield
+
+ROE
+
+ROA
+
+Debt to Equity
+
+Revenue
+
+Net Profit
+
+Operating Margin
+
+Free Cash Flow
+
+---
+
+# Market Metrics
+
+Display:
+
+52 Week High
+
+52 Week Low
+
+Beta
+
+Volatility
+
+Average Volume
+
+Current Volume
+
+---
+
+# Professional Charts
+
+Every stock page must contain:
+
+Candlestick Charts
+
+Timeframes:
+
+1 Minute
+
+5 Minute
+
+15 Minute
+
+1 Hour
+
+1 Day
+
+1 Week
+
+1 Month
+
+---
+
+# Technical Indicators
+
+Add:
+
+SMA
+
+EMA
+
+RSI
+
+MACD
+
+Bollinger Bands
+
+Volume Profile
+
+VWAP
+
+Users should be able to toggle indicators.
+
+---
+
+# Forecast Overlay
+
+Display forecasts directly on charts.
+
+Show:
+
+ARIMA Forecast
+
+LSTM Forecast
+
+XGBoost Forecast
+
+Ensemble Forecast
+
+Forecast Confidence Band
+
+---
+
+# Forecasting Engine
+
+Implement:
+
+ARIMA
+
+LSTM
+
+XGBoost
+
+Adaptive Ensemble
+
+Generate:
+
+Next Day Forecast
+
+Next Week Forecast
+
+Next Month Forecast
+
+---
+
+# Adaptive Ensemble Engine
+
+Create a weighted ensemble.
+
+Weights should adapt based on:
+
+Historical Accuracy
+
+Market Regime
+
+Recent Performance
+
+Output:
+
+Final Forecast
+
+Confidence Score
+
+---
+
+# Forecast Confidence Engine
+
+Generate:
+
+Confidence Score
+
+Model Agreement Score
+
+Forecast Volatility Score
+
+Display:
+
+Low
+
+Medium
+
+High
+
+Confidence Levels
+
+---
+
+# Model Agreement Score
+
+Compare:
+
+ARIMA
+
+LSTM
+
+XGBoost
+
+Display:
+
+Agreement %
+
+Consensus Forecast
+
+Confidence Meter
+
+Example:
+
+Agreement = 92%
+
+Confidence = High
+
+---
+
+# Market Regime Detection
+
+Detect:
+
+Bull Market
+
+Bear Market
+
+Sideways Market
+
+High Volatility
+
+Low Volatility
+
+Display:
+
+Current Regime
+
+Historical Regimes
+
+Regime Timeline
+
+Regime Transitions
+
+---
+
+# Portfolio Optimization
+
+Implement:
+
+Equal Weight Portfolio
+
+Markowitz Portfolio
+
+HRP Portfolio
+
+Generate:
+
+Optimal Allocation
+
+Expected Return
+
+Risk Metrics
+
+Rebalancing Suggestions
+
+---
+
+# Regime-Aware Optimization
+
+Market conditions should affect allocation.
+
+Example:
+
+Bull Market
+→ Aggressive Allocation
+
+Bear Market
+→ Defensive Allocation
+
+High Volatility
+→ Lower Exposure
+
+---
+
+# Signal Generation Engine
+
+Generate:
+
+BUY
+
+SELL
+
+HOLD
+
+Signals should use:
+
+Forecasts
+
+Confidence
+
+Regime
+
+Portfolio Risk
+
+Portfolio Allocation
+
+Optimization Output
+
+---
+
+# Explainability Engine
+
+For every signal show:
+
+ARIMA Contribution
+
+LSTM Contribution
+
+XGBoost Contribution
+
+Regime Contribution
+
+Optimization Contribution
+
+Confidence Score
+
+The user should understand exactly why the signal was generated.
+
+---
+
+# Gemini AI Layer
+
+Gemini must never generate forecasts.
+
+Forecasts must come from models.
+
+Gemini should only explain results.
+
+Use Gemini for:
+
+Signal Explanations
+
+Portfolio Reports
+
+Market Commentary
+
+Risk Commentary
+
+Forecast Interpretation
+
+Research Insights
+
+---
+
+# AI Research Commentary
+
+Send to Gemini:
+
+Forecasts
+
+Portfolio Metrics
+
+Technical Indicators
+
+Risk Metrics
+
+Regime Information
+
+Backtesting Results
+
+Generate:
+
+Professional Analyst Reports
+
+Investment Commentary
+
+Risk Analysis
+
+Portfolio Assessment
+
+---
+
+# Automated Paper Trading
+
+Starting Capital:
+
+₹10,00,000
+
+Workflow:
+
+Forecast
+↓
+Signal
+↓
+Optimization
+↓
+Paper Trade
+↓
+Portfolio Update
+
+Automatically:
+
+Buy
+
+Sell
+
+Track Holdings
+
+Track Returns
+
+Store Trades
+
+Store Order History
+
+No real money trading.
+
+---
+
+# Order Management
+
+Display:
+
+Open Orders
+
+Executed Orders
+
+Rejected Orders
+
+Trade Logs
+
+Fields:
+
+Date
+
+Time
+
+Symbol
+
+Quantity
+
+Price
+
+Signal Source
+
+Status
+
+---
+
+# Analytics & Research Laboratory
+
+Create a dedicated Analytics Lab.
+
+This should be one of the strongest sections.
+
+---
+
+# Forecast Analytics
+
+Compare:
+
+ARIMA
+
+LSTM
+
+XGBoost
+
+Ensemble
+
+Metrics:
+
+RMSE
+
+MAE
+
+MAPE
+
+R²
+
+Directional Accuracy
+
+Visualizations:
+
+Actual vs Predicted
+
+Error Distribution
+
+Rolling Accuracy
+
+Forecast Timeline
+
+---
+
+# Portfolio Analytics
+
+Compare:
+
+Equal Weight
+
+Markowitz
+
+HRP
+
+Metrics:
+
+Return
+
+Volatility
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Max Drawdown
+
+CAGR
+
+Visualizations:
+
+Portfolio Growth
+
+Efficient Frontier
+
+Allocation Comparison
+
+Risk Contribution
+
+---
+
+# Trading Analytics
+
+Compare:
+
+Buy & Hold
+
+Equal Weight
+
+Markowitz
+
+HRP
+
+Forecast + Markowitz
+
+Forecast + HRP
+
+Metrics:
+
+Return
+
+Win Rate
+
+Profit Factor
+
+Sharpe Ratio
+
+Max Drawdown
+
+---
+
+# Risk Analytics
+
+Display:
+
+Portfolio Beta
+
+Volatility
+
+VaR
+
+CVaR
+
+Downside Risk
+
+Drawdown
+
+Visualizations:
+
+Risk Heatmap
+
+Risk Contribution Charts
+
+Volatility Charts
+
+---
+
+# Correlation Analytics
+
+Display:
+
+Correlation Matrix
+
+Covariance Matrix
+
+Sector Exposure
+
+Diversification Score
+
+Visualizations:
+
+Correlation Heatmap
+
+Sector Allocation
+
+Asset Allocation
+
+---
+
+# Portfolio Health Score
+
+Generate:
+
+0-100 Health Score
+
+Factors:
+
+Diversification
+
+Volatility
+
+Risk
+
+Forecast Confidence
+
+Concentration Risk
+
+Display:
+
+Health Score
+
+Risk Grade
+
+Improvement Suggestions
+
+---
+
+# Advanced Backtesting Engine
+
+Allow users to select:
+
+Stocks
+
+Date Range
+
+Forecast Model
+
+Optimization Method
+
+Generate:
+
+Trade Logs
+
+Portfolio Growth
+
+Equity Curve
+
+Drawdown Curve
+
+Monthly Returns
+
+Compare against:
+
+NIFTY 50
+
+SENSEX
+
+Metrics:
+
+Alpha
+
+Beta
+
+CAGR
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Information Ratio
+
+Tracking Error
+
+---
+
+# Research Findings Page
+
+Create a presentation-ready research page.
+
+Display:
+
+Forecast Model Comparison
+
+Optimization Comparison
+
+Strategy Comparison
+
+Backtesting Results
+
+Highlight:
+
+Best Forecast Model
+
+Best Optimization Method
+
+Best Trading Strategy
+
+---
+
+# Executive Dashboard
+
+Create a management-level dashboard.
+
+Show:
+
+Portfolio Value
+
+Portfolio Return
+
+Forecast Confidence
+
+Portfolio Health
+
+Current Regime
+
+Active Signals
+
+Best Model
+
+Best Strategy
+
+A user should understand the platform within 10 seconds.
+
+---
+
+# Folder Structure
+
+Use clean modular architecture.
+
+frontend/
+backend/
+ml/
+forecasting/
+optimization/
+paper_trading/
+analytics/
+backtesting/
+signals/
+regime_detection/
+database/
+gemini/
+websocket/
+deployment/
+
+---
+
+# Final Goal
+
+The finished application should demonstrate:
+
+Financial Forecasting
+
+Machine Learning
+
+Ensemble Modeling
+
+Market Regime Detection
+
+Portfolio Optimization
+
+Risk Analytics
+
+Explainable Signals
+
+Paper Trading
+
+Research Analytics
+
+Backtesting
+
+AI-Assisted Commentary
+
+Real-Time Market Monitoring
+
+The final product should look like a professional quantitative investment platform and not a simple stock prediction application.
