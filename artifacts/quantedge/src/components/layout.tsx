@@ -4,13 +4,11 @@ import {
   LayoutDashboard, 
   Briefcase, 
   Eye, 
-  BarChart2, 
   Activity, 
   ShoppingCart, 
   LineChart, 
   TestTube, 
   SunMoon, 
-  BookOpen,
   LogOut,
   Search
 } from "lucide-react";
@@ -30,7 +28,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/analytics", label: "Analytics", icon: LineChart },
     { href: "/backtests", label: "Backtests", icon: TestTube },
     { href: "/regime", label: "Regime", icon: SunMoon },
-    { href: "/research", label: "Research", icon: BookOpen },
   ];
 
   const handleLogout = () => {

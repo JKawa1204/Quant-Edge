@@ -18,7 +18,6 @@ import Orders from "@/pages/orders";
 import Analytics from "@/pages/analytics";
 import Backtests from "@/pages/backtests";
 import Regime from "@/pages/regime";
-import Research from "@/pages/research";
 import StockDetail from "@/pages/stock-detail";
 
 const queryClient = new QueryClient({
@@ -69,7 +68,6 @@ function Router() {
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/backtests" component={Backtests} />
       <ProtectedRoute path="/regime" component={Regime} />
-      <ProtectedRoute path="/research" component={Research} />
       <ProtectedRoute path="/stocks/:symbol" component={StockDetail} />
       
       <Route component={NotFound} />
