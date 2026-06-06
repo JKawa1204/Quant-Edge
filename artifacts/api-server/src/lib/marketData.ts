@@ -48,6 +48,15 @@ export function getCurrentPrice(symbol: string): number {
   return Math.round(base * (1 + change) * 100) / 100;
 }
 
+export function getDayOpenPrice(symbol: string): number {
+  // Simulated day open — fixed per trading day using date as seed
+  const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
+  const today = new Date();
+  const daySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const change = (seededRandom(symbol.charCodeAt(0) + daySeed) - 0.48) * 0.008;
+  return Math.round(base * (1 + change) * 100) / 100;
+}
+
 export function getStockInfo(symbol: string) {
   return NIFTY_STOCKS[symbol] ?? { company: symbol, sector: "Unknown", industry: "Unknown", basePrice: 1000 };
 }

@@ -1,0 +1,5 @@
+- [Auth token storage](auth-token.md) — localStorage key is `quantedge_token`, not `token`. Direct fetch calls must use this key.
+- [Portfolio P&L pattern](portfolio-pnl.md) — Today's P&L uses day-open (fixed per day, date-seeded), Overall P&L uses holdingsTable.buyPrice (avg cost basis).
+- [Python ML service](ml-service.md) — Flask on port 8000, workflow registered, no artifact.toml routing needed (internal only). Needs PYTHONPATH awareness.
+- [Zod in api-server](api-server-zod.md) — zod/zod-v4 are NOT bundled in api-server. Use manual validation in route handlers.
+- [Upstox integration](upstox-integration.md) — OAuth2 routes in /api/upstox/*, simulated fallback when UPSTOX_API_KEY not set. Token stored in upstox_tokens table.
