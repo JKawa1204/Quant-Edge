@@ -8,7 +8,7 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 
 export default function Orders() {
-  const { data: orders, isLoading } = useGetOrders({ query: { queryKey: getGetOrdersQueryKey() } });
+  const { data: orders, isLoading } = useGetOrders();
 
   if (isLoading) return <div>Loading...</div>;
 

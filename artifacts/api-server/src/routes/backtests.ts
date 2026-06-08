@@ -254,7 +254,7 @@ router.get("/backtests", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/backtests/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [test] = await db.select().from(backtestsTable).where(eq(backtestsTable.id, id));
   if (!test) { res.status(404).json({ error: "Backtest not found" }); return; }

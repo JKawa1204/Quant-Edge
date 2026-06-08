@@ -9,7 +9,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth.js";
 import { db, portfoliosTable, holdingsTable, transactionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getCurrentPrice, getDayOpenPrice, getStockInfo } from "../lib/marketData.js";
 import type { Request } from "express";
 const router = Router();
@@ -142,8 +142,7 @@ router.post("/portfolio/buy", requireAuth, async (req, res): Promise<void> => {
 
   // Check if holding exists → update avg buy price
   const [existing] = await db.select().from(holdingsTable)
-    .where(eq(holdingsTable.portfolioId, portfolio.id))
-    .where(eq(holdingsTable.symbol, symbol));
+    .where(and(eq(holdingsTable.portfolioId, portfolio.id), eq(holdingsTable.symbol, symbol)));
 
   if (existing) {
     const newQty     = existing.quantity + quantity;
@@ -202,8 +201,7 @@ router.post("/portfolio/sell", requireAuth, async (req, res): Promise<void> => {
   const proceeds = price * quantity;
 
   const [holding] = await db.select().from(holdingsTable)
-    .where(eq(holdingsTable.portfolioId, portfolio.id))
-    .where(eq(holdingsTable.symbol, symbol));
+    .where(and(eq(holdingsTable.portfolioId, portfolio.id), eq(holdingsTable.symbol, symbol)));
 
   if (!holding || holding.quantity < quantity) {
     res.status(400).json({

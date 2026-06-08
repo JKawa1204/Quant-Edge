@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/requireAuth.js";
 import { db, signalsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { ExplainSignalParams } from "@workspace/api-zod";
+import { generateExplanation } from "../lib/explainability.js";
 
 const router = Router();
 
@@ -30,17 +31,20 @@ router.get("/signals/:id/explain", requireAuth, async (req, res): Promise<void> 
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const [signal] = await db.select().from(signalsTable).where(eq(signalsTable.id, params.data.id));
   if (!signal) { res.status(404).json({ error: "Signal not found" }); return; }
-  res.json({
-    signalId: signal.id,
-    symbol: signal.symbol,
-    action: signal.action,
+  
+  const explanation = generateExplanation({
+    ...signal,
+    confidence: Number(signal.confidence),
+    forecastReturn: Number(signal.forecastReturn),
     arimaContribution: Number(signal.arimaContribution ?? 25),
     lstmContribution: Number(signal.lstmContribution ?? 35),
     xgboostContribution: Number(signal.xgboostContribution ?? 28),
     regimeContribution: Number(signal.regimeContribution ?? 12),
-    optimizationContribution: 0,
-    confidenceScore: Number(signal.confidence),
-    reasoning: `Signal generated based on ensemble forecast showing ${signal.action} direction with ${signal.confidence}% confidence. LSTM model had highest weight due to superior recent accuracy. Regime (${signal.regime}) supports this directional bias.`,
+  });
+  
+  res.json({
+    signalId: signal.id,
+    ...explanation
   });
 });
 

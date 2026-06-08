@@ -8,7 +8,7 @@ import { ActionBadge } from "@/components/badges";
 export default function StockDetail() {
   const { symbol } = useParams();
   const { data: stock, isLoading: sLoad } = useGetStockDetail(symbol || '', { query: { queryKey: getGetStockDetailQueryKey(symbol || ''), enabled: !!symbol } });
-  const { data: candles, isLoading: cLoad } = useListStockCandles(symbol || '', { timeframe: '1D' }, { query: { queryKey: getListStockCandlesQueryKey(symbol || '', { timeframe: '1D' }), enabled: !!symbol } });
+  const { data: candles, isLoading: cLoad } = useListStockCandles(symbol || '', '1D', { query: { queryKey: getListStockCandlesQueryKey(symbol || '', '1D'), enabled: !!symbol } });
   const { data: forecast, isLoading: fLoad } = useGetForecasts(symbol || '', { query: { queryKey: getGetForecastsQueryKey(symbol || ''), enabled: !!symbol } });
 
   if (sLoad || cLoad || fLoad) return <div>Loading...</div>;

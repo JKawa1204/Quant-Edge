@@ -3,15 +3,19 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useGetSignals, getGetSignalsQueryKey } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ActionBadge, RegimeBadge } from "@/components/badges";
 import { Link } from "wouter";
 import {
   TrendingUp, TrendingDown, Activity, BrainCircuit,
-  GitBranch, LineChart, Layers, Target, ArrowUpRight, ArrowDownRight, ChevronRight
+  GitBranch, LineChart, Layers, Target, ArrowUpRight, ArrowDownRight, ChevronRight,
+  Bot, Zap, Play, Settings, Clock, ChevronDown, ChevronUp, Shield, BarChart3, Brain
 } from "lucide-react";
+import { QuantitativeTests } from "@/components/QuantitativeTests";
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 const API = `${BASE}/api`;
@@ -27,6 +31,33 @@ async function fetchHoldings() {
   });
   if (!r.ok) return [];
   return r.json();
+}
+
+// ── Types ───────────────────────────────────────────────────────────────────
+interface AutoTradingStatus {
+  enabled: boolean;
+  confidenceThreshold: number;
+  maxPositionSize: number;
+  lastRunTime: string | null;
+}
+
+interface AutoTradeEntry {
+  id: string;
+  symbol: string;
+  company: string;
+  action: string;
+  quantity: number;
+  price: number;
+  confidence: number;
+  reasoning: {
+    summary?: string;
+    signalSummary?: string;
+  };
+  arimaContribution: number;
+  xgboostContribution: number;
+  lstmContribution: number;
+  optimizationMethod: string;
+  timestamp: string;
 }
 
 // ── Model card ──────────────────────────────────────────────────────────────
@@ -102,6 +133,634 @@ function HoldingRow({ h }: { h: any }) {
   );
 }
 
+// ── Auto-Trading Control Panel (Section A) ─────────────────────────────────
+function AutoTradingPanel() {
+  const [status, setStatus] = useState<AutoTradingStatus>({
+    enabled: false,
+    confidenceThreshold: 70,
+    maxPositionSize: 15,
+    lastRunTime: null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [configThreshold, setConfigThreshold] = useState(70);
+  const [configMaxPosition, setConfigMaxPosition] = useState(15);
+  const [configSaving, setConfigSaving] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/auto-trading/status`, {
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        setStatus(data);
+        setConfigThreshold(data.confidenceThreshold ?? 70);
+        setConfigMaxPosition(data.maxPositionSize ?? 15);
+      }
+    } catch {
+      // API not available — keep defaults
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  const toggleAutoTrading = async () => {
+    try {
+      const r = await fetch(`${API}/auto-trading/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ enabled: !status.enabled }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        setStatus(prev => ({ ...prev, enabled: data.enabled ?? !prev.enabled }));
+      } else {
+        setStatus(prev => ({ ...prev, enabled: !prev.enabled }));
+      }
+    } catch {
+      setStatus(prev => ({ ...prev, enabled: !prev.enabled }));
+    }
+  };
+
+  const runNow = async () => {
+    setRunning(true);
+    try {
+      await fetch(`${API}/auto-trading/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+      });
+      setStatus(prev => ({ ...prev, lastRunTime: new Date().toISOString() }));
+    } catch {
+      // silently fail
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const saveConfig = async () => {
+    setConfigSaving(true);
+    try {
+      const r = await fetch(`${API}/auto-trading/configure`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          confidenceThreshold: configThreshold,
+          maxPositionSize: configMaxPosition,
+        }),
+      });
+      if (r.ok) {
+        setStatus(prev => ({
+          ...prev,
+          confidenceThreshold: configThreshold,
+          maxPositionSize: configMaxPosition,
+        }));
+      }
+    } catch {
+      // update locally even if API fails
+      setStatus(prev => ({
+        ...prev,
+        confidenceThreshold: configThreshold,
+        maxPositionSize: configMaxPosition,
+      }));
+    } finally {
+      setConfigSaving(false);
+      setShowConfig(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="bg-card/60 border-border/50">
+        <CardContent className="p-6">
+          <Skeleton className="h-32 w-full rounded-lg" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-card/60 border-border/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Automated Paper Trading</CardTitle>
+            <Zap className="h-4 w-4 text-yellow-400" />
+          </div>
+          {status.enabled && (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+              </span>
+              <span className="text-xs text-green-400 font-medium">Auto-trading active</span>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Toggle + Actions Row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={toggleAutoTrading}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              status.enabled
+                ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/20"
+                : "bg-muted/60 hover:bg-muted text-muted-foreground border border-border/50"
+            }`}
+          >
+            {status.enabled ? "ENABLED" : "DISABLED"}
+          </button>
+
+          <button
+            onClick={runNow}
+            disabled={running}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {running ? "Running…" : "Run Now"}
+          </button>
+
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-muted/40 hover:bg-muted/60 text-muted-foreground border border-border/50 transition-colors"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Configure
+          </button>
+        </div>
+
+        {/* Parameters Display */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="bg-muted/30 border border-border/40 rounded-lg px-3 py-2">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Min Confidence</div>
+            <div className="text-sm font-bold font-mono text-primary">{status.confidenceThreshold}%</div>
+          </div>
+          <div className="bg-muted/30 border border-border/40 rounded-lg px-3 py-2">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Max Position</div>
+            <div className="text-sm font-bold font-mono text-primary">{status.maxPositionSize}%</div>
+          </div>
+          {status.lastRunTime && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              Last run: {new Date(status.lastRunTime).toLocaleString()}
+            </div>
+          )}
+        </div>
+
+        {/* Configuration Form (inline) */}
+        {showConfig && (
+          <div className="border border-border/40 bg-muted/20 rounded-lg p-4 space-y-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Configuration
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Confidence Threshold (%)</label>
+                <input
+                  type="number"
+                  min={50}
+                  max={99}
+                  value={configThreshold}
+                  onChange={e => setConfigThreshold(parseInt(e.target.value) || 70)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Max Position Size (%)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={configMaxPosition}
+                  onChange={e => setConfigMaxPosition(parseInt(e.target.value) || 15)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveConfig}
+                disabled={configSaving}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {configSaving ? "Saving…" : "Save Configuration"}
+              </button>
+              <button
+                onClick={() => setShowConfig(false)}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-muted/40 hover:bg-muted/60 text-muted-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Model Contribution Bar ──────────────────────────────────────────────────
+function ModelContributionBar({
+  arima, xgboost, lstm, compact,
+}: {
+  arima: number; xgboost: number; lstm: number; compact?: boolean;
+}) {
+  const total = arima + xgboost + lstm;
+  const arimaPct = total > 0 ? (arima / total) * 100 : 33.3;
+  const xgboostPct = total > 0 ? (xgboost / total) * 100 : 33.3;
+  const lstmPct = total > 0 ? (lstm / total) * 100 : 33.4;
+
+  return (
+    <div className="space-y-1">
+      <div className={`w-full flex rounded-sm overflow-hidden border border-border/50 ${compact ? "h-3" : "h-4"}`}>
+        <div
+          className="bg-blue-500 transition-all"
+          style={{ width: `${arimaPct}%` }}
+          title={`ARIMA: ${arimaPct.toFixed(1)}%`}
+        />
+        <div
+          className="bg-orange-500 transition-all"
+          style={{ width: `${xgboostPct}%` }}
+          title={`XGBoost: ${xgboostPct.toFixed(1)}%`}
+        />
+        <div
+          className="bg-purple-500 transition-all"
+          style={{ width: `${lstmPct}%` }}
+          title={`Neural Net: ${lstmPct.toFixed(1)}%`}
+        />
+      </div>
+      {!compact && (
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            ARIMA {arimaPct.toFixed(0)}%
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-orange-500" />
+            XGBoost {xgboostPct.toFixed(0)}%
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-purple-500" />
+            Neural Net {lstmPct.toFixed(0)}%
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Recent Auto-Trades Feed (Section B) ─────────────────────────────────────
+function RecentAutoTradesFeed() {
+  const [trades, setTrades] = useState<AutoTradeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`${API}/auto-trading/history`, {
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+        });
+        if (r.ok) {
+          const data = await r.json();
+          setTrades(Array.isArray(data) ? data.slice(0, 5) : []);
+        }
+      } catch {
+        // API not available
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const actionColor = (action: string) => {
+    const a = action.toUpperCase();
+    if (a === "BUY") return "bg-green-500/15 text-green-400 border-green-500/20";
+    if (a === "SELL") return "bg-red-500/15 text-red-400 border-red-500/20";
+    return "bg-muted/40 text-muted-foreground border-border/50";
+  };
+
+  return (
+    <Card className="bg-card/60 border-border/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base">Recent Auto-Trade Decisions</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+          </div>
+        ) : trades.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Bot className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <div className="text-sm text-muted-foreground">
+              Enable auto-trading to see automated decisions here
+            </div>
+            <div className="text-xs text-muted-foreground/60 mt-1">
+              The bot will analyze signals and execute paper trades automatically
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {trades.map((trade) => (
+              <div
+                key={trade.id}
+                className="border border-border/40 bg-muted/10 rounded-lg p-4 space-y-3 hover:border-border/60 transition-colors"
+              >
+                {/* Header row */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <span className="font-bold text-sm">{trade.symbol}</span>
+                      {trade.company && (
+                        <span className="text-xs text-muted-foreground ml-2">{trade.company}</span>
+                      )}
+                    </div>
+                    <Badge variant="outline" className={`text-[10px] font-semibold ${actionColor(trade.action)}`}>
+                      {trade.action.toUpperCase()}
+                    </Badge>
+                    {trade.optimizationMethod && (
+                      <Badge variant="outline" className="text-[10px] font-mono bg-primary/10 text-primary border-primary/20">
+                        {trade.optimizationMethod}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {new Date(trade.timestamp).toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Details row */}
+                <div className="flex items-center gap-4 flex-wrap text-xs">
+                  <div className="bg-muted/30 rounded-md px-2.5 py-1">
+                    <span className="text-muted-foreground">Qty: </span>
+                    <span className="font-mono font-semibold">{trade.quantity}</span>
+                  </div>
+                  <div className="bg-muted/30 rounded-md px-2.5 py-1">
+                    <span className="text-muted-foreground">Price: </span>
+                    <span className="font-mono font-semibold">₹{trade.price?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Confidence:</span>
+                    <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          trade.confidence >= 0.8 ? "bg-green-400" :
+                          trade.confidence >= 0.6 ? "bg-yellow-400" : "bg-red-400"
+                        }`}
+                        style={{ width: `${(trade.confidence ?? 0) * 100}%` }}
+                      />
+                    </div>
+                    <span className="font-mono font-semibold">{((trade.confidence ?? 0) * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                {/* Reasoning */}
+                {(trade.reasoning?.summary || trade.reasoning?.signalSummary) && (
+                  <div className="text-xs text-muted-foreground bg-muted/20 rounded-md px-3 py-2 leading-relaxed">
+                    {trade.reasoning.summary || trade.reasoning.signalSummary}
+                  </div>
+                )}
+
+                {/* Model contributions bar */}
+                <ModelContributionBar
+                  arima={trade.arimaContribution ?? 0}
+                  xgboost={trade.xgboostContribution ?? 0}
+                  lstm={trade.lstmContribution ?? 0}
+                  compact
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Active Signals with Explanations (Section C) ────────────────────────────
+function ActiveSignalsExplained() {
+  const { data: signals, isLoading } = useGetSignals({ query: { queryKey: getGetSignalsQueryKey() } });
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const toggleExpand = (id: number) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
+
+  const getHighestModel = (signal: any) => {
+    const contributions = [
+      { name: "ARIMA", value: signal.arimaContribution ?? 0 },
+      { name: "Neural Net", value: signal.lstmContribution ?? 0 },
+      { name: "XGBoost", value: signal.xgboostContribution ?? 0 },
+    ];
+    contributions.sort((a, b) => b.value - a.value);
+    return contributions[0];
+  };
+
+  const getDirection = (signal: any) => {
+    if (signal.action?.toUpperCase() === "BUY") return "upward";
+    if (signal.action?.toUpperCase() === "SELL") return "downward";
+    return "neutral";
+  };
+
+  const getRegimeStrategy = (regime: string) => {
+    const r = (regime ?? "").toLowerCase();
+    if (r.includes("bull")) return { supports: true, strategy: "momentum / growth strategies" };
+    if (r.includes("bear")) return { supports: false, strategy: "defensive / hedging strategies" };
+    if (r.includes("sideways")) return { supports: true, strategy: "mean-reversion strategies" };
+    if (r.includes("high vol")) return { supports: false, strategy: "reduced position sizing" };
+    return { supports: true, strategy: "balanced strategies" };
+  };
+
+  return (
+    <Card className="bg-card/60 border-border/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Active Signals — Why Buy / Sell / Hold</CardTitle>
+          </div>
+          <Link href="/signals">
+            <button className="flex items-center gap-1 text-xs text-primary hover:underline">
+              View all <ChevronRight className="h-3 w-3" />
+            </button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+          </div>
+        ) : !signals || signals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <BarChart3 className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <div className="text-sm text-muted-foreground">
+              No active signals available
+            </div>
+            <div className="text-xs text-muted-foreground/60 mt-1">
+              Signals will appear once the ML pipeline generates predictions
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {signals.map((signal) => {
+              const isExpanded = expandedId === signal.id;
+              const highest = getHighestModel(signal);
+              const direction = getDirection(signal);
+              const regimeInfo = getRegimeStrategy(signal.regime ?? "unknown");
+              const confidencePct = (signal.confidence ?? 0) * 100;
+              const highestPct = (highest.value ?? 0) * 100;
+
+              return (
+                <div key={signal.id} className="border border-border/40 rounded-lg overflow-hidden hover:border-border/60 transition-colors">
+                  {/* Signal row */}
+                  <button
+                    onClick={() => toggleExpand(signal.id)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-bold text-sm">{signal.symbol}</span>
+                      <ActionBadge action={signal.action} />
+                      {/* Confidence meter */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              confidencePct >= 70 ? "bg-green-400" :
+                              confidencePct >= 50 ? "bg-yellow-400" : "bg-red-400"
+                            }`}
+                            style={{ width: `${confidencePct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono text-muted-foreground">{confidencePct.toFixed(0)}%</span>
+                      </div>
+                      {signal.regime && <RegimeBadge regime={signal.regime} />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {signal.forecastReturn !== undefined && (
+                        <span className={`text-xs font-mono font-semibold ${
+                          signal.forecastReturn > 0 ? "text-green-400" : "text-red-400"
+                        }`}>
+                          {signal.forecastReturn > 0 ? "+" : ""}{(signal.forecastReturn ?? 0).toFixed(2)}%
+                        </span>
+                      )}
+                      {isExpanded
+                        ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      }
+                    </div>
+                  </button>
+
+                  {/* Expandable explanation */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/30 bg-muted/5">
+                      {/* Model Breakdown */}
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          <BarChart3 className="h-3 w-3" />
+                          Model Breakdown
+                        </div>
+                        <div className="space-y-2">
+                          {[
+                            { name: "ARIMA", value: (signal.arimaContribution ?? 0) * 100, color: "bg-blue-500" },
+                            { name: "Neural Net (LSTM)", value: (signal.lstmContribution ?? 0) * 100, color: "bg-purple-500" },
+                            { name: "XGBoost", value: (signal.xgboostContribution ?? 0) * 100, color: "bg-orange-500" },
+                          ].map(model => (
+                            <div key={model.name} className="flex items-center gap-3">
+                              <span className="text-xs text-muted-foreground w-28 flex-shrink-0">{model.name}</span>
+                              <div className="flex-1 h-2 bg-muted/40 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${model.color} transition-all`}
+                                  style={{ width: `${model.value}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-mono font-semibold w-12 text-right">{model.value.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Regime Impact */}
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          <Shield className="h-3 w-3" />
+                          Regime Impact
+                        </div>
+                        <div className="bg-muted/20 rounded-md px-3 py-2 text-xs">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-muted-foreground">Current Regime:</span>
+                            <RegimeBadge regime={signal.regime ?? "unknown"} />
+                          </div>
+                          <p className="text-muted-foreground leading-relaxed">
+                            The {(signal.regime ?? "unknown").toLowerCase()} regime{" "}
+                            <span className={regimeInfo.supports ? "text-green-400" : "text-red-400"}>
+                              {regimeInfo.supports ? "supports" : "contradicts"}
+                            </span>{" "}
+                            this {signal.action?.toUpperCase()} signal. Recommended: {regimeInfo.strategy}.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Forecast */}
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          <TrendingUp className="h-3 w-3" />
+                          Forecast
+                        </div>
+                        <div className="flex items-center gap-4 text-xs">
+                          <div className="bg-muted/20 rounded-md px-3 py-2">
+                            <span className="text-muted-foreground">Expected Return: </span>
+                            <span className={`font-mono font-bold ${
+                              (signal.forecastReturn ?? 0) > 0 ? "text-green-400" : "text-red-400"
+                            }`}>
+                              {(signal.forecastReturn ?? 0) > 0 ? "+" : ""}{(signal.forecastReturn ?? 0).toFixed(2)}%
+                            </span>
+                          </div>
+                          <div className="bg-muted/20 rounded-md px-3 py-2">
+                            <span className="text-muted-foreground">Direction: </span>
+                            <span className={`font-semibold ${
+                              direction === "upward" ? "text-green-400" :
+                              direction === "downward" ? "text-red-400" : "text-muted-foreground"
+                            }`}>
+                              {direction === "upward" ? "↑ Bullish" : direction === "downward" ? "↓ Bearish" : "— Neutral"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Generated Explanation */}
+                      <div className="bg-primary/5 border border-primary/10 rounded-lg px-4 py-3">
+                        <p className="text-xs leading-relaxed text-foreground/80">
+                          <strong>{signal.action?.toUpperCase()}</strong> because the ensemble model shows{" "}
+                          <strong>{direction}</strong> movement with{" "}
+                          <strong className="font-mono">{confidencePct.toFixed(0)}%</strong> confidence.{" "}
+                          <strong>{highest.name}</strong> contributed most ({highestPct.toFixed(0)}%).{" "}
+                          Regime (<em>{signal.regime ?? "unknown"}</em>){" "}
+                          {regimeInfo.supports ? "supports" : "contradicts"} the{" "}
+                          {signal.action?.toUpperCase() === "BUY" ? "long" : signal.action?.toUpperCase() === "SELL" ? "short" : "hold"} strategy.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
@@ -117,6 +776,45 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => { loadHoldings(); }, [loadHoldings]);
+
+  // Connect to Live Price WebSocket
+  useEffect(() => {
+    // In dev, the API server is on 3000. In prod, it's relative.
+    const wsUrl = window.location.hostname === "localhost" 
+      ? "ws://localhost:3000/"
+      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`;
+      
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "PRICE_UPDATE") {
+          const { symbol, price } = msg.data;
+          
+          setHoldings(prev => prev.map(h => {
+            if (h.symbol === symbol) {
+              const prevClose = h.prevClose || h.avgBuyPrice;
+              const todayPnl = (price - prevClose) * h.quantity;
+              const todayPnlPct = ((price - prevClose) / prevClose) * 100;
+              
+              const overallPnl = (price - h.avgBuyPrice) * h.quantity;
+              const overallPnlPct = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
+              
+              const currentValue = price * h.quantity;
+              
+              return { ...h, currentPrice: price, todayPnl, todayPnlPct, overallPnl, overallPnlPct, currentValue };
+            }
+            return h;
+          }));
+        }
+      } catch (e) {
+        console.error("WebSocket decode error", e);
+      }
+    };
+
+    return () => ws.close();
+  }, []);
 
   const totalTodayPnl   = holdings.reduce((s, h) => s + (h.todayPnl ?? 0), 0);
   const totalOverallPnl = holdings.reduce((s, h) => s + (h.overallPnl ?? 0), 0);
@@ -212,6 +910,19 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* ═══════════════════ NEW SECTIONS ═══════════════════ */}
+
+      {/* Section A: Auto-Trading Control Panel */}
+      <AutoTradingPanel />
+
+      {/* Section B: Recent Auto-Trades Feed */}
+      <RecentAutoTradesFeed />
+
+      {/* Section C: Active Signals with Explanations */}
+      <ActiveSignalsExplained />
+
+      {/* ═══════════════════ EXISTING SECTIONS ═══════════════════ */}
+
       {/* Holdings P&L table */}
       <Card className="bg-card/60">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -261,160 +972,22 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* ML Pipeline */}
-      <div>
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <BrainCircuit className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-bold">ML Forecasting Pipeline</h2>
-          <Badge variant="secondary" className="text-xs">Python · statsmodels · XGBoost · scikit-learn</Badge>
-        </div>
-
-        {/* Flow diagram */}
-        <div className="flex items-center gap-2 mb-5 flex-wrap">
-          {["OHLCV Data", "Feature Eng.", "ARIMA", "XGBoost", "Neural Net", "Ensemble", "Signal"].map((step, i, arr) => (
-            <div key={step} className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-muted/50 border border-border/50 rounded-full px-3 py-1 text-xs font-medium">
-                {step}
-              </div>
-              {i < arr.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <ModelCard
-            name="ARIMA" tag="(5,1,0)" color="bg-blue-400"
-            description="AutoRegressive Integrated Moving Average. Captures linear autocorrelation in the price series. Order (5,1,0) = 5-lag AR, first-difference to remove trend, no MA terms."
-            metrics={[
-              { label: "Type",     value: "Statistical" },
-              { label: "Input",    value: "Close price" },
-              { label: "Horizon", value: "1–30 days" },
-              { label: "Strength", value: "Linear AR" },
-            ]}
-          />
-          <ModelCard
-            name="XGBoost" tag="n=200, d=4" color="bg-orange-400"
-            description="Gradient Boosting trained on 15 features: lag returns (1–21d), RSI-14, MACD (12/26), Bollinger Band position, volume ratio, high-low range. 80/20 chronological split."
-            metrics={[
-              { label: "Features",   value: "15 inputs" },
-              { label: "Trees",      value: "200" },
-              { label: "Max Depth", value: "4 levels" },
-              { label: "Strength",   value: "Non-linear" },
-            ]}
-          />
-          <ModelCard
-            name="Neural Net" tag="[30→128→64→1]" color="bg-purple-400"
-            description="MLP trained on 30-day return sequences. Two hidden layers (128, 64) with ReLU activations, Adam optimizer, and early stopping (20 rounds no-improve). Mimics LSTM temporal patterns."
-            metrics={[
-              { label: "Layers",     value: "128 → 64" },
-              { label: "Window",     value: "30 days" },
-              { label: "Optimizer", value: "Adam" },
-              { label: "Strength",   value: "Sequences" },
-            ]}
-          />
-          <ModelCard
-            name="Ensemble" tag="DA-weighted" color="bg-green-400"
-            description="Weighted average of all three models. Weights proportional to each model's directional accuracy on held-out test data. Final BUY/SELL by majority vote. HOLD if confidence < 65%."
-            metrics={[
-              { label: "Voting",     value: "Majority" },
-              { label: "Weights",    value: "DA-based" },
-              { label: "Threshold", value: "65% conf." },
-              { label: "Strength",   value: "Robustness" },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* How it works */}
-      <Card className="bg-card/40 border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            How The Pipeline Works
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-6 text-sm">
-            <div>
-              <div className="text-primary font-semibold mb-2">1. Data &amp; Features</div>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>252 trading days of OHLCV per symbol</li>
-                <li>Lag returns: 1, 2, 3, 5, 10, 21 days</li>
-                <li>RSI-14, MACD (12/26), Bollinger Bands</li>
-                <li>Volume ratio vs 20-day moving average</li>
-                <li>High-Low range normalised by close price</li>
-                <li>Upstox live data when API key is set</li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-primary font-semibold mb-2">2. Training &amp; Validation</div>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>80/20 chronological train/test split</li>
-                <li>No look-ahead bias — strictly ordered</li>
-                <li>Metrics: RMSE, MAE, MAPE, Directional Acc.</li>
-                <li>XGBoost: StandardScaler normalisation</li>
-                <li>Neural Net: early stopping (patience=20)</li>
-                <li>ARIMA: Ljung-Box residual diagnostics</li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-primary font-semibold mb-2">3. Signal Generation</div>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Each model outputs 30-day price path + CI</li>
-                <li>Weights ∝ directional accuracy (softmax)</li>
-                <li>BUY: ensemble UP + confidence ≥ 65%</li>
-                <li>SELL: ensemble DOWN + confidence ≥ 65%</li>
-                <li>HOLD: conflicting or low-confidence signals</li>
-                <li>Regime filter: bearish suppresses BUY signals</li>
-              </ul>
-            </div>
+      {/* Quantitative Testing */}
+      {holdings.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <Activity className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold">Quantitative Risk Analysis</h2>
+            <Badge variant="secondary" className="text-xs">Monte Carlo &amp; Stress Tests</Badge>
           </div>
-        </CardContent>
-      </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from(new Set(holdings.map((h: any) => h.symbol as string))).slice(0, 3).map((symbol) => (
+              <QuantitativeTests key={symbol} symbol={symbol} />
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Regime + Data source */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="bg-card/40">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Market Regime Detection</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            <p className="mb-3">Rule-based classifier using SMA-50/200 crossover, 20-day realized vol (annualized), RSI-14, and 20-day linear regression slope.</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: "Bull Market",   desc: "Above SMA50+200, golden cross, +momentum", color: "bg-green-400/15 text-green-300 border-green-400/20" },
-                { label: "Bear Market",   desc: "Below SMAs, death cross, −momentum",        color: "bg-red-400/15 text-red-300 border-red-400/20" },
-                { label: "High Volatility", desc: "Realized vol > 30% annualized",           color: "bg-yellow-400/15 text-yellow-300 border-yellow-400/20" },
-                { label: "Sideways",      desc: "Mixed signals, mean-reversion mode",         color: "bg-blue-400/15 text-blue-300 border-blue-400/20" },
-              ].map(r => (
-                <div key={r.label} className={`rounded-md p-2 border ${r.color}`}>
-                  <div className="font-semibold text-xs">{r.label}</div>
-                  <div className="text-[10px] mt-0.5 opacity-80">{r.desc}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/40">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Upstox API Integration</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground space-y-3">
-            <p>
-              Live market data via <strong className="text-foreground">Upstox API v2</strong> — NSE/BSE real-time quotes, OHLCV candles (1m to 1d), and broker portfolio positions.
-            </p>
-            <p>
-              Without credentials, a deterministic OHLCV generator simulates realistic price series for all 15 Nifty stocks. All ML models run identically on both data sources.
-            </p>
-            <div className="border border-border/40 rounded-md p-3 bg-muted/30 font-mono text-[11px] space-y-1">
-              <div className="text-foreground font-semibold font-sans text-xs mb-1">Connect live data:</div>
-              <div>UPSTOX_API_KEY = your_api_key</div>
-              <div>UPSTOX_API_SECRET = your_secret</div>
-              <div>UPSTOX_REDIRECT_URI = callback_url</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

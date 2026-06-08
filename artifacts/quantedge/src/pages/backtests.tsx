@@ -12,14 +12,14 @@ import { TrendingUp, TrendingDown, Activity, Shield, Zap, ChevronDown, ChevronUp
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 const API = `${BASE}/api`;
 
-function authHdr() {
+function authHdr(): Record<string, string> {
   const t = localStorage.getItem("quantedge_token");
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
 type DetailData = Awaited<ReturnType<typeof fetchDetail>>;
 async function fetchDetail(id: number) {
-  const r = await fetch(`${API}/backtests/${id}`, { headers: { "Content-Type": "application/json", ...authHdr() } });
+  const r = await fetch(`${API}/backtests/${id}`, { headers: { "Content-Type": "application/json", ...authHdr() } as Record<string, string> });
   return r.json() as Promise<{
     id: number; name: string; symbols: string[]; startDate: string; endDate: string;
     forecastModel: string; optimizationMethod: string;

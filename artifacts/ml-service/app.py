@@ -8,6 +8,9 @@ Endpoints:
   GET  /ml/signals                    — signals for all held symbols
   GET  /ml/model-performance          — aggregate model accuracy stats
   POST /ml/forecast/batch             — multi-symbol forecasts
+  POST /ml/optimize                   — portfolio optimization (Markowitz / HRP)
+  GET  /ml/rankings                   — ensemble-ranked stock list
+  POST /ml/build-portfolio            — auto-build optimized portfolio
 
 Upstox data override:
   If UPSTOX_ACCESS_TOKEN env var is set, live data is fetched from Upstox API.
@@ -42,10 +45,21 @@ from models.xgboost_model import forecast as xgb_forecast
 from models.neural_model  import forecast as nn_forecast
 from models import ensemble as ens_module
 from models.regime        import detect_regime
+from models.optimization  import optimize_portfolio, rank_stocks, build_portfolio
+from models.monte_carlo   import run_monte_carlo
+from models.stress_test   import run_stress_test
 
 # ── Simple in-memory cache (avoids re-fitting on every request) ───────────────
 _cache: dict = {}
 CACHE_TTL = 300  # 5 minutes
+
+# ── Rankings cache (separate, longer TTL because ranking is expensive) ────────
+_rankings_cache: dict = {"data": None, "timestamp": 0}
+RANKINGS_CACHE_TTL = 600  # 10 minutes
+
+# Start the WebSocket client to receive live prices from Node.js
+from models.live_data import start_websocket_client_thread
+start_websocket_client_thread()
 
 
 def _cache_key(symbol: str) -> str:
@@ -148,6 +162,31 @@ def regime_symbol(symbol: str):
         result["symbol"] = symbol
         return jsonify(result)
     except Exception as e:
+        log.exception("regime error for %s", symbol)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ml/simulate/<symbol>")
+def simulate_symbol(symbol: str):
+    symbol = symbol.upper().strip()
+    try:
+        result = run_monte_carlo(symbol)
+        if "error" in result:
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception as e:
+        log.exception("monte carlo error for %s", symbol)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ml/stress-test/<symbol>")
+def stress_test_symbol(symbol: str):
+    symbol = symbol.upper().strip()
+    try:
+        result = run_stress_test(symbol)
+        if "error" in result:
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception as e:
+        log.exception("stress test error for %s", symbol)
         return jsonify({"error": str(e)}), 500
 
 
@@ -239,6 +278,118 @@ def model_performance():
 
     result.sort(key=lambda x: -x["avgDirectionalAccuracy"])
     return jsonify({"models": result, "evaluatedOn": symbols})
+
+
+# ── Portfolio Optimization Routes ────────────────────────────────────────────
+
+@app.route("/ml/optimize", methods=["POST"])
+def optimize():
+    """Portfolio optimization endpoint.
+
+    Accepts JSON:
+        {
+            "symbols": ["RELIANCE", "TCS", ...],
+            "method": "markowitz" | "hrp" | "both",
+            "riskTolerance": "low" | "medium" | "high"
+        }
+    """
+    data = request.get_json(silent=True) or {}
+    symbols = [s.upper().strip() for s in data.get("symbols", [])]
+    method = data.get("method", "both").lower()
+    risk_tolerance = data.get("riskTolerance", "medium").lower()
+
+    if not symbols or len(symbols) < 2:
+        return jsonify({"error": "At least 2 symbols are required"}), 400
+
+    if method not in ("markowitz", "hrp", "both"):
+        return jsonify({"error": "method must be 'markowitz', 'hrp', or 'both'"}), 400
+
+    # Map risk tolerance to risk-free rate
+    risk_free_map = {"low": 0.08, "medium": 0.065, "high": 0.04}
+    risk_free_rate = risk_free_map.get(risk_tolerance, 0.065)
+
+    try:
+        result = optimize_portfolio(symbols, method=method, risk_free_rate=risk_free_rate)
+        result["riskTolerance"] = risk_tolerance
+        result["riskFreeRate"] = risk_free_rate
+        return jsonify(result)
+    except Exception as e:
+        log.exception("optimization error")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/ml/rankings")
+def rankings():
+    """Return all stocks ranked by ensemble forecast confidence.
+
+    Results are cached for 10 minutes since forecasting all ~50 stocks is expensive.
+    Query params:
+        limit (int, optional): max number of results to return
+    """
+    now = time.time()
+
+    # Check cache
+    if (_rankings_cache["data"] is not None and
+            now - _rankings_cache["timestamp"] < RANKINGS_CACHE_TTL):
+        log.info("rankings cache hit")
+        ranked = _rankings_cache["data"]
+    else:
+        log.info("computing fresh rankings for all stocks")
+        t0 = time.time()
+        try:
+            ranked = rank_stocks()
+            _rankings_cache["data"] = ranked
+            _rankings_cache["timestamp"] = now
+            log.info("rankings computed in %.1fms", (time.time() - t0) * 1000)
+        except Exception as e:
+            log.exception("rankings error")
+            return jsonify({"error": str(e)}), 500
+
+    # Optional limit
+    limit = request.args.get("limit", type=int)
+    output = ranked[:limit] if limit and limit > 0 else ranked
+
+    return jsonify({
+        "rankings": output,
+        "totalStocks": len(ranked),
+        "returnedCount": len(output),
+        "cachedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(_rankings_cache["timestamp"])),
+    })
+
+
+@app.route("/ml/build-portfolio", methods=["POST"])
+def build_portfolio_route():
+    """Auto-build an optimized portfolio from top-ranked stocks.
+
+    Accepts JSON:
+        {
+            "count": 10,
+            "method": "hrp" | "markowitz",
+            "riskTolerance": "low" | "medium" | "high"
+        }
+    """
+    data = request.get_json(silent=True) or {}
+    count = data.get("count", 10)
+    method = data.get("method", "hrp").lower()
+    risk_tolerance = data.get("riskTolerance", "medium").lower()
+
+    if not isinstance(count, int) or count < 2:
+        return jsonify({"error": "count must be an integer >= 2"}), 400
+
+    if method not in ("markowitz", "hrp"):
+        return jsonify({"error": "method must be 'markowitz' or 'hrp'"}), 400
+
+    risk_free_map = {"low": 0.08, "medium": 0.065, "high": 0.04}
+    risk_free_rate = risk_free_map.get(risk_tolerance, 0.065)
+
+    try:
+        result = build_portfolio(count=count, method=method, risk_free_rate=risk_free_rate)
+        result["riskTolerance"] = risk_tolerance
+        result["riskFreeRate"] = risk_free_rate
+        return jsonify(result)
+    except Exception as e:
+        log.exception("build-portfolio error")
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Run ──────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import backtestsRouter from "./backtests";
 import marketRouter from "./market";
 import aiCommentaryRouter from "./aiCommentary";
 import upstoxRouter from "./upstox";
+import autoTradingRouter from "./autoTrading";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(analyticsRouter);
 router.use(backtestsRouter);
 router.use(marketRouter);
 router.use(aiCommentaryRouter);
+router.use(autoTradingRouter);
 
 export default router;

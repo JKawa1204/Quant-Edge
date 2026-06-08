@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth.js";
-import { db, portfoliosTable, holdingsTable, signalsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, portfoliosTable, holdingsTable, signalsTable, usersTable, autoTradesTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { getCurrentPrice, getMarketIndices, getMarketMovers, getMarketRegime, generateForecasts } from "../lib/marketData.js";
 import type { Request } from "express";
 
@@ -11,11 +11,17 @@ type AuthReq = Request & { userId: number };
 
 router.get("/dashboard/summary", requireAuth, async (req, res): Promise<void> => {
   const userId = (req as AuthReq).userId;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const [portfolio] = await db.select().from(portfoliosTable).where(eq(portfoliosTable.userId, userId));
   if (!portfolio) { res.status(404).json({ error: "Portfolio not found" }); return; }
 
   const holdings = await db.select().from(holdingsTable).where(eq(holdingsTable.portfolioId, portfolio.id));
   const signals = await db.select().from(signalsTable).where(eq(signalsTable.status, "active"));
+  const recentAutoTrades = await db.select()
+    .from(autoTradesTable)
+    .where(eq(autoTradesTable.portfolioId, portfolio.id))
+    .orderBy(desc(autoTradesTable.createdAt))
+    .limit(5);
 
   let invested = 0;
   let currentValue = 0;
@@ -57,7 +63,23 @@ router.get("/dashboard/summary", requireAuth, async (req, res): Promise<void> =>
     bestModel: "LSTM",
     bestStrategy: "Forecast + HRP",
     activeSignalsCount: signals.length,
+    autoTradingEnabled: user?.autoTradingEnabled ?? false,
+    recentAutoTrades,
   });
+});
+
+router.get("/dashboard/recent-auto-trades", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthReq).userId;
+  const [portfolio] = await db.select().from(portfoliosTable).where(eq(portfoliosTable.userId, userId));
+  if (!portfolio) { res.status(404).json({ error: "Portfolio not found" }); return; }
+
+  const recentAutoTrades = await db.select()
+    .from(autoTradesTable)
+    .where(eq(autoTradesTable.portfolioId, portfolio.id))
+    .orderBy(desc(autoTradesTable.createdAt))
+    .limit(10);
+    
+  res.json(recentAutoTrades);
 });
 
 router.get("/dashboard/market-overview", requireAuth, async (req, res): Promise<void> => {
