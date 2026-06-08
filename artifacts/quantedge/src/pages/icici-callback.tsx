@@ -22,7 +22,8 @@ export default function IciciCallback() {
       return;
     }
 
-    const API = import.meta.env.VITE_API_URL || "/api";
+    const BASE = import.meta.env.BASE_URL === "/" ? "" : import.meta.env.BASE_URL;
+    const API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : `${BASE}/api`;
 
     fetch(`${API}/icici/callback`, {
       method: "POST",
