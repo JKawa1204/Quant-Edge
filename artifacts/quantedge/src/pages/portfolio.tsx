@@ -561,7 +561,7 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
                                   />
                                 </div>
                                 <span className="text-[10px] font-mono text-muted-foreground">
-                                  {(stock.confidence).toFixed(0)}%
+                                  {stock.confidence ? stock.confidence.toFixed(0) : "N/A"}%
                                 </span>
                               </div>
                             </td>

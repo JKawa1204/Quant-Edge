@@ -35,8 +35,8 @@ log = logging.getLogger(__name__)
 TRADING_DAYS = 252
 
 # ── Weight constraints ───────────────────────────────────────────────────────
-MIN_WEIGHT = 0.0    # no short selling
-MAX_WEIGHT = 0.25   # max 25% per stock
+MIN_WEIGHT = 0.05   # min 5% per stock
+MAX_WEIGHT = 0.30   # max 30% per stock
 
 
 # ──────────────────────────────────────────────────────────────────────────────

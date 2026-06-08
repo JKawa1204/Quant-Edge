@@ -89,14 +89,14 @@ def _run_forecast(symbol: str) -> dict:
 
     df = get_ohlcv(symbol, days=252)
 
+    current = get_current_price(symbol)
+    info    = get_stock_info(symbol)
+
     arima  = arima_forecast(df, steps=30)
     xgb    = xgb_forecast(df, steps=30)
     nn     = nn_forecast(df, steps=30)
-    ens    = ens_module.combine(arima, xgb, nn)
+    ens    = ens_module.combine(arima, xgb, nn, current)
     regime = detect_regime(df)
-
-    current = get_current_price(symbol)
-    info    = get_stock_info(symbol)
 
     result = {
         "symbol":      symbol,

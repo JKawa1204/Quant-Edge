@@ -93,7 +93,7 @@ export default function Watchlist() {
       id: "all",
       name: "All Shares",
       stocks: allStocks.map(s => {
-        const sig = mlSignals[s.symbol];
+        const sig = mlSignals[s.symbol] || mlSignals[s.symbol.replace(".NS", "")];
         return {
           id: s.symbol,
           symbol: s.symbol,
@@ -112,7 +112,7 @@ export default function Watchlist() {
     ...(watchlists || []).map((w: any) => ({
       ...w,
       stocks: w.stocks.map((s: any) => {
-        const sig = mlSignals[s.symbol];
+        const sig = mlSignals[s.symbol] || mlSignals[s.symbol.replace(".NS", "")];
         return {
           ...s,
           forecastDirection: sig?.action === "BUY" ? "UP" : sig?.action === "SELL" ? "DOWN" : "UNKNOWN",
@@ -194,24 +194,41 @@ export default function Watchlist() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{formatNumber(stock.volume)}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            {stock.forecastDirection === 'UP' ? <TrendingUp className="h-4 w-4 text-chart-1" /> : 
-                             stock.forecastDirection === 'DOWN' ? <TrendingDown className="h-4 w-4 text-destructive" /> : 
-                             <Minus className="h-4 w-4 text-muted-foreground" />}
-                            <span className="text-sm capitalize">{stock.forecastDirection.toLowerCase()}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell><ActionBadge action={stock.signal} /></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full ${stock.confidence > 70 ? 'bg-chart-1' : stock.confidence > 40 ? 'bg-chart-3' : 'bg-destructive'}`} 
-                                style={{ width: `${stock.confidence}%` }}
-                              />
+                          {!mlSignals[stock.symbol] && !mlSignals[stock.symbol.replace(".NS", "")] ? (
+                             <div className="flex items-center gap-2 text-muted-foreground text-xs animate-pulse">
+                               <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                               Analyzing...
+                             </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              {stock.forecastDirection === 'UP' ? <TrendingUp className="h-4 w-4 text-chart-1" /> : 
+                               stock.forecastDirection === 'DOWN' ? <TrendingDown className="h-4 w-4 text-destructive" /> : 
+                               <Minus className="h-4 w-4 text-muted-foreground" />}
+                              <span className="text-sm capitalize">{stock.forecastDirection.toLowerCase()}</span>
                             </div>
-                            <span className="text-xs text-muted-foreground">{(stock.confidence).toFixed(0)}%</span>
-                          </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!mlSignals[stock.symbol] && !mlSignals[stock.symbol.replace(".NS", "")] ? (
+                             <span className="text-xs text-muted-foreground">Pending</span>
+                          ) : (
+                             <ActionBadge action={stock.signal} />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!mlSignals[stock.symbol] && !mlSignals[stock.symbol.replace(".NS", "")] ? (
+                             <span className="text-xs text-muted-foreground">-</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${stock.confidence > 70 ? 'bg-chart-1' : stock.confidence > 40 ? 'bg-chart-3' : 'bg-destructive'}`} 
+                                  style={{ width: `${stock.confidence}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground">{(stock.confidence).toFixed(0)}%</span>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )})}

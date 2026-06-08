@@ -1,136 +1,131 @@
 """
-Neural Network (MLP) price forecasting — a feedforward network that
-approximates LSTM-style sequence learning via lag feature windows.
-Uses scikit-learn MLPRegressor: no TensorFlow/PyTorch dependency needed.
-
-Architecture: Input(30 lag returns) → Dense(128,relu) → Dense(64,relu) → Dense(1)
+LSTM (Long Short-Term Memory) neural network for sequence prediction.
+Uses PyTorch to train an LSTM on Open, High, Low, Close daily returns.
 """
-import numpy as np
-import pandas as pd
-from sklearn.neural_network import MLPRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-
-WINDOW = 30  # look-back window (sequence length)
-
-
-def _make_sequences(prices: np.ndarray):
-    """Convert price series to supervised sequences."""
-    returns = np.diff(prices) / prices[:-1]  # log-return-like
-    X, y = [], []
-    for i in range(WINDOW, len(returns)):
-        X.append(returns[i - WINDOW:i])
-        y.append(returns[i])
-    return np.array(X), np.array(y)
-
-
 import os
 import joblib
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+class LSTMModel(nn.Module):
+    def __init__(self, n_features, hidden=64):
+        super().__init__()
+        self.lstm = nn.LSTM(n_features, hidden, batch_first=True)
+        self.fc = nn.Linear(hidden, n_features)
+
+    def forward(self, x):
+        _, (h, _) = self.lstm(x)
+        return self.fc(h[-1])
+
+def _create_sequences(data, window=30):
+    X, y = [], []
+    for i in range(window, len(data)):
+        X.append(data[i-window:i])
+        y.append(data[i])
+    return np.array(X), np.array(y)
 
 def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
-    closes = df["close"].values.astype(float)
     symbol = df.name if hasattr(df, "name") else "unknown"
-
-    try:
-        X, y = _make_sequences(closes)
-
-        split = int(len(X) * 0.8)
-        X_train, X_test = X[:split], X[split:]
-        y_train, y_test = y[:split], y[split:]
-
-        model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_neural.pkl")
-        model_path_ns = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}.NS_neural.pkl")
+    
+    # 1. Prepare Data
+    # Use Open, High, Low, Close
+    cols = []
+    for c in ['Open', 'High', 'Low', 'Close']:
+        if c in df.columns:
+            cols.append(c)
+        elif c.lower() in df.columns:
+            cols.append(c.lower())
+    
+    if len(cols) != 4:
+        return {"direction": "HOLD", "confidence": 50.0, "predicted_return": 0.0, "metrics": {"rmse": 0, "mae": 0, "directionalAccuracy": 0.5}}
         
-        if os.path.exists(model_path):
-            saved = joblib.load(model_path)
-            model = saved["model"]
-            scaler = saved["scaler"]
-            X_test_s = scaler.transform(X_test)
-            iterations = getattr(model, "n_iter_", 0)
-        elif os.path.exists(model_path_ns):
-            saved = joblib.load(model_path_ns)
-            model = saved["model"]
-            scaler = saved["scaler"]
-            X_test_s = scaler.transform(X_test)
-            iterations = getattr(model, "n_iter_", 0)
+    data = df[cols].copy()
+    returns = data.pct_change().dropna()
+    
+    if len(returns) < 50:
+        return {"direction": "HOLD", "confidence": 50.0, "predicted_return": 0.0, "metrics": {"rmse": 0, "mae": 0, "directionalAccuracy": 0.5}}
+
+    scaler = MinMaxScaler()
+    scaled = scaler.fit_transform(returns)
+    
+    X, y = _create_sequences(scaled, window=30)
+    if len(X) == 0:
+        return {"direction": "HOLD", "confidence": 50.0, "predicted_return": 0.0, "metrics": {"rmse": 0, "mae": 0, "directionalAccuracy": 0.5}}
+        
+    X_t = torch.tensor(X, dtype=torch.float32)
+    y_t = torch.tensor(y, dtype=torch.float32)
+
+    split = int(0.8 * len(X))
+    X_train, X_test = X_t[:split], X_t[split:]
+    y_train, y_test = y_t[:split], y_t[split:]
+
+    model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_neural.pkl")
+    model_path_ns = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}.NS_neural.pkl")
+    target_path = model_path if os.path.exists(model_path) else (model_path_ns if os.path.exists(model_path_ns) else None)
+
+    # 2. Train or Load Model
+    if target_path:
+        saved = joblib.load(target_path)
+        model = saved["model"]
+        scaler = saved["scaler"]
+    else:
+        model = LSTMModel(X.shape[2], hidden=64)
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        
+        for epoch in range(20):
+            optimizer.zero_grad()
+            preds = model(X_train)
+            loss = criterion(preds, y_train)
+            loss.backward()
+            optimizer.step()
+            
+        try:
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            joblib.dump({"model": model, "scaler": scaler}, model_path)
+        except Exception as e:
+            pass
+
+    # 3. Evaluate
+    model.eval()
+    with torch.no_grad():
+        if len(X_test) > 0:
+            preds_test = model(X_test).numpy()
+            actual_test = y_test.numpy()
+            
+            # Index 3 corresponds to Close Return
+            rmse = float(np.sqrt(mean_squared_error(actual_test[:, 3], preds_test[:, 3])))
+            mae = float(mean_absolute_error(actual_test[:, 3], preds_test[:, 3]))
+            
+            # Directional Accuracy
+            da = float(np.mean(np.sign(actual_test[:, 3] - 0.5) == np.sign(preds_test[:, 3] - 0.5)))
         else:
-            # Fallback if no pre-trained model: Return default 50% HOLD
-            return {
-                "model": "Neural Net (MLP)",
-                "description": "Multi-Layer Perceptron Regressor.",
-                "nextDay": float(closes[-1]),
-                "nextWeek": float(closes[-1]),
-                "nextMonth": float(closes[-1]),
-                "direction": "HOLD",
-                "confidence": 50.0,
-                "rmse": 0.0,
-                "mae": 0.0,
-                "mape": 0.0,
-                "directionalAccuracy": 50.0,
-                "forecastPoints": [{"day": i, "value": round(float(closes[-1]), 2), "lower": round(float(closes[-1]), 2), "upper": round(float(closes[-1]), 2)} for i in range(1, steps + 1)],
-                "featureImportance": {},
-            }
+            rmse, mae, da = 0.0, 0.0, 0.5
 
-        y_pred_test = model.predict(X_test_s)
+    # 4. Predict Next Day
+    last_window = scaled[-30:]
+    last_window_t = torch.tensor([last_window], dtype=torch.float32)
+    with torch.no_grad():
+        pred_scaled = model(last_window_t).numpy()
+    
+    pred_unscaled = scaler.inverse_transform(pred_scaled)
+    # Return index 3 is Close Return
+    expected_return = float(pred_unscaled[0, 3])
 
-        prices_scaled = closes / closes[0]  # normalize
-        rmse_ret = float(np.sqrt(mean_squared_error(y_test, y_pred_test)))
-        mae_ret  = float(mean_absolute_error(y_test, y_pred_test))
-        mape     = float(np.mean(np.abs((y_test - y_pred_test) / (np.abs(y_test) + 1e-9))) * 100)
-        da       = float(np.mean(np.sign(y_test) == np.sign(y_pred_test)) * 100)
+    direction = "UP" if expected_return > 0.001 else "DOWN" if expected_return < -0.001 else "HOLD"
+    confidence = min(95.0, max(50.0, 50 + (da - 0.5) * 100))
 
-        # Multi-step forecast
-        current   = float(closes[-1])
-        price     = current
-        window    = list(np.diff(closes[-WINDOW - 1:]) / closes[-WINDOW - 1:-1])
-        points    = []
-
-        for step in range(1, steps + 1):
-            x_input = np.array(window[-WINDOW:]).reshape(1, -1)
-            x_scaled = scaler.transform(x_input)
-            ret   = float(model.predict(x_scaled)[0])
-            price = price * (1 + ret)
-            std   = float(np.std(y_test))
-            lower = price * (1 - 2 * std * np.sqrt(step))
-            upper = price * (1 + 2 * std * np.sqrt(step))
-            points.append({
-                "day":   step,
-                "value": round(price, 2),
-                "lower": round(lower, 2),
-                "upper": round(upper, 2),
-            })
-            window.append(ret)
-
-        direction  = "UP" if points[-1]["value"] > current else "DOWN"
-        confidence = min(90, max(52, 65 + (da - 50) * 0.6 - rmse_ret * 1000))
-
-        return {
-            "model": "Neural Net (MLP)",
-            "order": "Layers: [30→128→64→1]",
-            "description": "Multi-Layer Perceptron trained on 30-day return sequences. Mimics LSTM-style temporal learning by treating each look-back window as a flat feature vector. Uses ReLU activations with early stopping.",
-            "nextDay":   points[0]["value"],
-            "nextWeek":  points[4]["value"] if len(points) >= 5 else points[-1]["value"],
-            "nextMonth": points[-1]["value"],
-            "direction": direction,
-            "confidence": round(confidence, 2),
-            "rmse": round(rmse_ret * 1000, 4),
-            "mae":  round(mae_ret * 1000, 4),
-            "mape": round(mape, 4),
-            "directionalAccuracy": round(da, 2),
-            "forecastPoints": points,
-            "iterations": iterations,
-            "error": None,
+    return {
+        "direction": direction,
+        "confidence": float(confidence),
+        "predicted_return": expected_return,
+        "metrics": {
+            "rmse": rmse,
+            "mae": mae,
+            "directionalAccuracy": da
         }
-
-    except Exception as e:
-        current = float(closes[-1])
-        return {
-            "model": "Neural Net (MLP)",
-            "description": "MLP model",
-            "nextDay": current, "nextWeek": current, "nextMonth": current,
-            "direction": "HOLD", "confidence": 50.0,
-            "rmse": 0, "mae": 0, "mape": 0, "directionalAccuracy": 50.0,
-            "forecastPoints": [],
-            "error": str(e),
-        }
+    }
