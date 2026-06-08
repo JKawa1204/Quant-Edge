@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file=../../.env ./build.mjs && node --env-file=../../.env --enable-source-maps ./dist/index.mjs",
-    "build": "node ./build.mjs",
+    "build": "pnpm --filter @workspace/db run push && node ./build.mjs",
     "start": "node --env-file=../../.env --enable-source-maps ./dist/index.mjs",
     "start:prod": "node ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
