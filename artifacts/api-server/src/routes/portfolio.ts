@@ -338,10 +338,13 @@ router.post("/portfolio/optimize", requireAuth, async (req, res): Promise<void> 
     }
 
     const pyData = await pyRes.json();
-    // pyData should have { weights: { "RELIANCE.NS": 0.25, ... } }
+    
+    // ML service returns { "markowitz": { "weights": {...} }, "hrp": { "weights": {...} } }
+    const activeMethod = (method === "hrp" ? "hrp" : "markowitz");
+    const weights = pyData[activeMethod]?.weights || {};
     
     const allocations = symbolsToOptimize.map((sym, idx) => {
-      const w = (pyData.weights[sym + ".NS"] || 0) * 100;
+      const w = (weights[sym + ".NS"] || weights[sym] || 0) * 100;
       return {
         rank: idx + 1,
         symbol: sym,
