@@ -69,7 +69,8 @@ def _seed(symbol: str, offset: int = 0) -> float:
 
 def get_ohlcv(symbol: str, days: int = 252) -> pd.DataFrame:
     """Generate deterministic synthetic OHLCV series for a symbol."""
-    info = STOCKS.get(symbol, {"base": 1000})
+    lookup_symbol = symbol.replace(".NS", "")
+    info = STOCKS.get(lookup_symbol, {"base": 1000})
     base = info["base"]
 
     np.random.seed(sum(ord(c) for c in symbol) % 2**32)
@@ -120,4 +121,5 @@ def list_symbols():
 
 
 def get_stock_info(symbol: str) -> dict:
-    return STOCKS.get(symbol, {"company": symbol, "sector": "Unknown", "base": 1000})
+    lookup_symbol = symbol.replace(".NS", "")
+    return STOCKS.get(lookup_symbol, {"company": symbol, "sector": "Unknown", "base": 1000})

@@ -8,6 +8,36 @@ import { generateExplanation } from "../lib/explainability.js";
 const router = Router();
 
 router.get("/signals", requireAuth, async (_req, res): Promise<void> => {
+  try {
+    const mlUrl = process.env.ML_SERVICE_URL || "http://localhost:5000";
+    // Hit ML service for top 10 stocks
+    const mlRes = await fetch(`${mlUrl}/ml/signals`);
+    if (mlRes.ok) {
+      const mlData = await mlRes.json();
+      // Map to expected UI format
+      const formatted = mlData.map((s: any, i: number) => ({
+        id: i + 1,
+        symbol: s.symbol,
+        company: s.company,
+        action: s.action,
+        confidence: Number(s.confidence),
+        forecastReturn: Number(s.forecastReturn),
+        regime: s.regime || "Bull Market",
+        createdAt: new Date().toISOString(),
+        status: "active",
+        arimaContribution: s.arimaContribution ? Number(s.arimaContribution) : null,
+        lstmContribution: s.lstmContribution ? Number(s.lstmContribution) : null,
+        xgboostContribution: s.xgboostContribution ? Number(s.xgboostContribution) : null,
+        regimeContribution: s.regimeContribution ? Number(s.regimeContribution) : null,
+      }));
+      res.json(formatted);
+      return;
+    }
+  } catch (err) {
+    console.error("Failed to fetch from ML service, falling back to DB", err);
+  }
+
+  // Fallback to DB
   const signals = await db.select().from(signalsTable).where(eq(signalsTable.status, "active"));
   res.json(signals.map(s => ({
     id: s.id,

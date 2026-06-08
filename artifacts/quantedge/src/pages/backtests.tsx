@@ -515,64 +515,61 @@ export default function Backtests() {
       </div>
 
       {/* Scenario list */}
-      <div className="space-y-2">
+      <div className="space-y-6">
         {backtests?.map(b => {
-          const isOpen = expanded === b.id;
-          const cagrColor = (b.cagr ?? 0) >= 18 ? "text-emerald-400" : (b.cagr ?? 0) >= 10 ? "text-yellow-400" : "text-red-400";
+          const metrics = b.metrics || b || {};
+          const cagr = metrics.cagr ?? 0;
+          const sharpe = metrics.sharpeRatio ?? 0;
+          const maxDd = metrics.maxDrawdown ?? 0;
+          const alpha = metrics.alpha ?? 0;
+          
+          const cagrColor = cagr >= 18 ? "text-emerald-400" : cagr >= 10 ? "text-yellow-400" : "text-red-400";
           const modelKey = (b.forecastModel ?? "").toLowerCase();
           const badgeCls = MODEL_COLORS[modelKey] ?? "bg-muted/40 text-muted-foreground border-border";
 
           return (
-            <Card key={b.id} className={`transition-all ${isOpen ? "ring-1 ring-primary/40" : "hover:bg-card/80"}`}>
-              <button
-                className="w-full text-left px-5 py-4 flex items-center gap-4"
-                onClick={() => setExpanded(isOpen ? null : b.id!)}
-              >
+            <Card key={b.id} className="overflow-hidden border-border/60 shadow-sm">
+              <div className="bg-muted/10 px-5 py-4 flex items-center gap-4 border-b border-border/40">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{b.name}</span>
-                    <Badge variant="outline" className={`text-[10px] py-0 px-1.5 border ${badgeCls}`}>
+                    <span className="font-semibold text-lg">{b.name}</span>
+                    <Badge variant="outline" className={`text-xs py-0.5 px-2 border ${badgeCls}`}>
                       {MODEL_BADGE[modelKey] ?? b.forecastModel}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0">
+                    <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                       {OPT_LABEL[b.optimizationMethod ?? ""] ?? b.optimizationMethod}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
                     <span>{b.symbols?.join(", ")}</span>
                     <span>·</span>
                     <span>{format(new Date(b.startDate!), "MMM yyyy")} → {format(new Date(b.endDate!), "MMM yyyy")}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6 shrink-0">
+                <div className="flex items-center gap-6 shrink-0 bg-background/50 px-4 py-2 rounded-lg border border-border/40">
                   <div className="text-right">
-                    <div className={`text-lg font-bold tabular-nums ${cagrColor}`}>+{b.cagr?.toFixed(1)}%</div>
-                    <div className="text-[10px] text-muted-foreground uppercase">CAGR</div>
+                    <div className={`text-xl font-bold tabular-nums ${cagrColor}`}>+{cagr.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground uppercase font-medium">CAGR</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums">{b.sharpeRatio?.toFixed(2)}</div>
-                    <div className="text-[10px] text-muted-foreground uppercase">Sharpe</div>
+                    <div className="text-lg font-semibold tabular-nums">{sharpe.toFixed(2)}</div>
+                    <div className="text-xs text-muted-foreground uppercase font-medium">Sharpe</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums text-red-400">{b.maxDrawdown?.toFixed(1)}%</div>
-                    <div className="text-[10px] text-muted-foreground uppercase">Max DD</div>
+                    <div className="text-lg font-semibold tabular-nums text-red-400">{maxDd.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground uppercase font-medium">Max DD</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums text-blue-400">+{b.alpha?.toFixed(1)}%</div>
-                    <div className="text-[10px] text-muted-foreground uppercase">Alpha</div>
-                  </div>
-                  <div className="text-muted-foreground">
-                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <div className="text-lg font-semibold tabular-nums text-blue-400">+{alpha.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground uppercase font-medium">Alpha</div>
                   </div>
                 </div>
-              </button>
+              </div>
 
-              {isOpen && (
-                <div className="px-5 pb-5 border-t border-border/60">
-                  <DetailPanel id={b.id!} />
-                </div>
-              )}
+              <div className="px-5 pb-5 pt-2">
+                <DetailPanel id={b.id!} />
+              </div>
             </Card>
           );
         })}

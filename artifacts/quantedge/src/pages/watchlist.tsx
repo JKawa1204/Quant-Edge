@@ -16,6 +16,7 @@ export default function Watchlist() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [allStocks, setAllStocks] = useState<any[]>([]);
+  const [mlSignals, setMlSignals] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -27,6 +28,18 @@ export default function Watchlist() {
         if (res.ok) {
           const data = await res.json();
           setAllStocks(data);
+          
+          // Fetch ML Signals for the top 15 stocks to avoid heavy computation at once
+          const topSymbols = data.slice(0, 15).map((s: any) => s.symbol).join(",");
+          const mlRes = await fetch(`${baseUrl}/api/ml/signals?symbols=${topSymbols}`, { headers });
+          if (mlRes.ok) {
+            const mlData = await mlRes.json();
+            const signalMap: Record<string, any> = {};
+            mlData.forEach((item: any) => {
+              signalMap[item.symbol.replace(".NS", "")] = item;
+            });
+            setMlSignals(signalMap);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch all stocks", e);
@@ -68,20 +81,36 @@ export default function Watchlist() {
     {
       id: "all",
       name: "All Shares",
-      stocks: allStocks.map(s => ({
-        id: s.symbol,
-        symbol: s.symbol,
-        company: s.company,
-        price: s.price || 0,
-        change: s.change || 0,
-        changePct: s.changePct || 0,
-        volume: s.volume || 0,
-        forecastDirection: "UNKNOWN",
-        signal: "HOLD",
-        confidence: 0
-      }))
+      stocks: allStocks.map(s => {
+        const sig = mlSignals[s.symbol];
+        return {
+          id: s.symbol,
+          symbol: s.symbol,
+          company: s.company,
+          price: s.price || 0,
+          change: s.change || 0,
+          changePct: s.changePct || 0,
+          volume: s.volume || 0,
+          forecastDirection: sig?.action === "BUY" ? "UP" : sig?.action === "SELL" ? "DOWN" : "UNKNOWN",
+          signal: sig?.action || "HOLD",
+          forecastReturn: sig?.forecastReturn || 0,
+          confidence: sig?.confidence || 0
+        };
+      })
     },
-    ...(watchlists || [])
+    ...(watchlists || []).map((w: any) => ({
+      ...w,
+      stocks: w.stocks.map((s: any) => {
+        const sig = mlSignals[s.symbol];
+        return {
+          ...s,
+          forecastDirection: sig?.action === "BUY" ? "UP" : sig?.action === "SELL" ? "DOWN" : "UNKNOWN",
+          signal: sig?.action || "HOLD",
+          forecastReturn: sig?.forecastReturn || 0,
+          confidence: sig?.confidence || 0
+        };
+      })
+    }))
   ];
 
   const activeWatchlist = combinedWatchlists.find(w => w.id.toString() === activeTab) || combinedWatchlists[0];
