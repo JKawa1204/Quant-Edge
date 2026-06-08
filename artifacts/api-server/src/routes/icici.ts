@@ -51,19 +51,15 @@ router.post("/icici/callback", requireAuth, async (req, res): Promise<void> => {
 
     const userId = (req as AuthReq).userId;
 
-    // Upsert the session token into the database
-    await db.insert(iciciTokensTable)
-      .values({
-        userId: userId,
-        sessionToken: apisession,
-      })
-      .onConflictDoUpdate({
-        target: iciciTokensTable.userId,
-        set: {
-          sessionToken: apisession,
-          updatedAt: new Date(),
-        },
-      });
+    // First, delete any existing tokens for this user to avoid duplicate constraint issues
+    await db.delete(iciciTokensTable).where(eq(iciciTokensTable.userId, userId));
+
+    // Then insert the new session token
+    await db.insert(iciciTokensTable).values({
+      userId: userId,
+      sessionToken: apisession,
+      updatedAt: new Date(),
+    });
 
     // Reconnect WebSocket Feed globally using the new token
     stopIciciWSS();
