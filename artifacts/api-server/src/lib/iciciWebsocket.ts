@@ -138,8 +138,10 @@ export async function connectIciciWSS() {
               });
             }
           }
-        }).catch(() => {});
-      }, index * 200); // 200ms delay between each to avoid rate limits
+        }).catch((err: any) => {
+          logger.error(`Initial quote fetch failed for ${symbol}: ${err}`);
+        });
+      }, index * 1000); // 1s delay between each to avoid ICICI strict rate limits
     });
 
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");

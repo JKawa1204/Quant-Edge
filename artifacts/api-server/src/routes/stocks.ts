@@ -70,6 +70,10 @@ router.get("/stocks/:symbol/candles/:timeframe", requireAuth, async (req, res): 
         }));
         res.json(candles);
         return;
+      } else {
+        import("../lib/logger.js").then(({ logger }) => {
+          logger.error(`ICICI getHistoricalDatav2 returned no valid data array for ${symbol}: ${JSON.stringify(iciciData).substring(0, 200)}`);
+        });
       }
     }
   } catch (err: any) {
@@ -78,9 +82,8 @@ router.get("/stocks/:symbol/candles/:timeframe", requireAuth, async (req, res): 
     });
   }
 
-  // Fallback to simulated if real fetch fails
-  const candles = getCandles(symbol, timeframe, 100);
-  res.json(candles);
+  // No fallback to simulated data allowed!
+  res.json([]);
 });
 
 router.get("/stocks/:symbol/indicators/:timeframe", requireAuth, async (req, res): Promise<void> => {

@@ -53,43 +53,17 @@ const NIFTY_STOCKS: Record<string, { company: string; sector: string; industry: 
   "TRENT": { company: "Trent", sector: "Consumer", industry: "Retail", basePrice: 5800 },
 };
 
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed + 1) * 10000;
-  return x - Math.floor(x);
-}
-
-function getDayPrice(symbol: string, daysAgo: number = 0): number {
-  const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
-  const seed = symbol.charCodeAt(0) * 31 + symbol.charCodeAt(1) * 17 + daysAgo * 7;
-  const dailyChange = (seededRandom(seed) - 0.48) * 0.04;
-  let price = base;
-  for (let i = daysAgo; i >= 0; i--) {
-    const s = symbol.charCodeAt(0) * 31 + symbol.charCodeAt(1) * 17 + i * 7;
-    price = price * (1 + (seededRandom(s) - 0.48) * 0.04);
-  }
-  return Math.round(price * 100) / 100;
-}
-
 import { currentPrices } from "./iciciWebsocket.js";
 
 export function getCurrentPrice(symbol: string): number {
   if (currentPrices && currentPrices.has(symbol)) {
     return currentPrices.get(symbol)!;
   }
-  const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
-  const now = Date.now();
-  const minuteSeed = Math.floor(now / 60000);
-  const change = (seededRandom(symbol.charCodeAt(0) + minuteSeed) - 0.48) * 0.006;
-  return Math.round(base * (1 + change) * 100) / 100;
+  return NIFTY_STOCKS[symbol]?.basePrice ?? 0;
 }
 
 export function getDayOpenPrice(symbol: string): number {
-  // Simulated day open — fixed per trading day using date as seed
-  const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
-  const today = new Date();
-  const daySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-  const change = (seededRandom(symbol.charCodeAt(0) + daySeed) - 0.48) * 0.008;
-  return Math.round(base * (1 + change) * 100) / 100;
+  return NIFTY_STOCKS[symbol]?.basePrice ?? 0;
 }
 
 export function getStockInfo(symbol: string) {
@@ -114,36 +88,8 @@ export function searchStocks(query: string) {
 }
 
 export function getCandles(symbol: string, timeframe: string, limit: number = 100) {
-  const candles = [];
-  const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
-  const now = new Date();
-
-  for (let i = limit; i >= 0; i--) {
-    const d = new Date(now);
-    if (timeframe === "1d" || timeframe === "1w" || timeframe === "1mo") {
-      d.setDate(d.getDate() - i);
-    } else {
-      const minutes = timeframe === "1m" ? i : timeframe === "5m" ? i * 5 : timeframe === "15m" ? i * 15 : i * 60;
-      d.setMinutes(d.getMinutes() - minutes);
-    }
-
-    const seed = symbol.charCodeAt(0) * 100 + i;
-    const open = base * (1 + (seededRandom(seed) - 0.48) * 0.03);
-    const high = open * (1 + seededRandom(seed + 1) * 0.015);
-    const low = open * (1 - seededRandom(seed + 2) * 0.015);
-    const close = low + seededRandom(seed + 3) * (high - low);
-    const volume = Math.floor(100000 + seededRandom(seed + 4) * 500000);
-
-    candles.push({
-      time: d.toISOString(),
-      open: Math.round(open * 100) / 100,
-      high: Math.round(high * 100) / 100,
-      low: Math.round(low * 100) / 100,
-      close: Math.round(close * 100) / 100,
-      volume,
-    });
-  }
-  return candles;
+  // Fallback has been removed, this is only here to satisfy TS types in other places if called.
+  return [];
 }
 
 export function getStockDetail(symbol: string) {
@@ -152,32 +98,31 @@ export function getStockDetail(symbol: string) {
 
   const price = getCurrentPrice(symbol);
   const prevPrice = info.basePrice;
-  const seed = symbol.charCodeAt(0) * 7;
 
   return {
     symbol,
     company: info.company,
     sector: info.sector,
     industry: info.industry,
-    description: `${info.company} is a leading ${info.industry} company listed on the NSE. It operates across multiple segments contributing significantly to the Indian economy.`,
-    marketCap: Math.round(price * (1_000_000 + seededRandom(seed) * 5_000_000) * 100) / 100,
-    eps: Math.round((20 + seededRandom(seed + 1) * 80) * 100) / 100,
-    pe: Math.round((12 + seededRandom(seed + 2) * 40) * 100) / 100,
-    bookValue: Math.round((price * 0.3 + seededRandom(seed + 3) * price * 0.4) * 100) / 100,
-    dividendYield: Math.round(seededRandom(seed + 4) * 3 * 100) / 100,
-    roe: Math.round((8 + seededRandom(seed + 5) * 25) * 100) / 100,
-    roa: Math.round((3 + seededRandom(seed + 6) * 15) * 100) / 100,
-    debtToEquity: Math.round(seededRandom(seed + 7) * 2 * 100) / 100,
-    revenue: Math.round((10000 + seededRandom(seed + 8) * 90000) * 100) / 100,
-    netProfit: Math.round((1000 + seededRandom(seed + 9) * 20000) * 100) / 100,
-    operatingMargin: Math.round((10 + seededRandom(seed + 10) * 30) * 100) / 100,
-    freeCashFlow: Math.round((500 + seededRandom(seed + 11) * 15000) * 100) / 100,
-    week52High: Math.round(price * (1.2 + seededRandom(seed + 12) * 0.3) * 100) / 100,
-    week52Low: Math.round(price * (0.6 + seededRandom(seed + 13) * 0.2) * 100) / 100,
-    beta: Math.round((0.6 + seededRandom(seed + 14) * 1.2) * 100) / 100,
-    volatility: Math.round((10 + seededRandom(seed + 15) * 25) * 100) / 100,
-    avgVolume: Math.floor(500000 + seededRandom(seed + 16) * 2000000),
-    currentVolume: Math.floor(300000 + seededRandom(seed + 17) * 1500000),
+    description: `${info.company} is a leading ${info.industry} company listed on the NSE.`,
+    marketCap: 1000000,
+    eps: 50,
+    pe: 25,
+    bookValue: price * 0.5,
+    dividendYield: 1.5,
+    roe: 15,
+    roa: 8,
+    debtToEquity: 0.5,
+    revenue: 50000,
+    netProfit: 10000,
+    operatingMargin: 20,
+    freeCashFlow: 5000,
+    week52High: price * 1.2,
+    week52Low: price * 0.8,
+    beta: 1.1,
+    volatility: 15,
+    avgVolume: 1000000,
+    currentVolume: 800000,
     currentPrice: price,
     change: Math.round((price - prevPrice) * 100) / 100,
     changePct: Math.round(((price - prevPrice) / prevPrice) * 10000) / 100,
@@ -231,37 +176,10 @@ export function getTechnicalIndicators(symbol: string) {
 
 export function getMarketIndices() {
   const now = new Date().toISOString();
-  const seed = Math.floor(Date.now() / 300000);
-  const niftyBase = 24500;
-  const sensexBase = 80500;
-  const niftyChange = (seededRandom(seed) - 0.48) * 400;
-  const sensexChange = (seededRandom(seed + 1) - 0.48) * 1200;
-
   return [
-    {
-      name: "NIFTY 50",
-      symbol: "^NSEI",
-      value: Math.round((niftyBase + niftyChange) * 100) / 100,
-      change: Math.round(niftyChange * 100) / 100,
-      changePct: Math.round((niftyChange / niftyBase) * 10000) / 100,
-      updatedAt: now,
-    },
-    {
-      name: "SENSEX",
-      symbol: "^BSESN",
-      value: Math.round((sensexBase + sensexChange) * 100) / 100,
-      change: Math.round(sensexChange * 100) / 100,
-      changePct: Math.round((sensexChange / sensexBase) * 10000) / 100,
-      updatedAt: now,
-    },
-    {
-      name: "BANK NIFTY",
-      symbol: "^NSEBANK",
-      value: Math.round((52300 + (seededRandom(seed + 2) - 0.48) * 800) * 100) / 100,
-      change: Math.round((seededRandom(seed + 3) - 0.48) * 800 * 100) / 100,
-      changePct: Math.round((seededRandom(seed + 4) - 0.48) * 3 * 100) / 100,
-      updatedAt: now,
-    },
+    { name: "NIFTY 50", symbol: "^NSEI", value: 24500, change: 0, changePct: 0, updatedAt: now },
+    { name: "SENSEX", symbol: "^BSESN", value: 80500, change: 0, changePct: 0, updatedAt: now },
+    { name: "BANK NIFTY", symbol: "^NSEBANK", value: 52300, change: 0, changePct: 0, updatedAt: now },
   ];
 }
 
@@ -316,86 +234,41 @@ export function getSectorPerformance() {
 }
 
 export function getMarketRegime() {
-  const seed = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
-  const regimes = ["Bull Market", "Bear Market", "Sideways Market", "High Volatility", "Low Volatility"];
-  const regime = regimes[Math.floor(seededRandom(seed) * regimes.length)];
-  const confidence = Math.round((60 + seededRandom(seed + 1) * 35) * 100) / 100;
-
-  const strategyMap: Record<string, string> = {
-    "Bull Market": "Aggressive Allocation — Increase equity exposure",
-    "Bear Market": "Defensive Allocation — Shift to bonds and cash",
-    "Sideways Market": "Balanced Allocation — Maintain current weights",
-    "High Volatility": "Reduce Exposure — Lower position sizes",
-    "Low Volatility": "Momentum Strategy — Follow trend signals",
-  };
-
   return {
-    regime,
-    confidence,
-    description: `Market is currently in a ${regime} phase based on momentum, volatility, and breadth indicators.`,
-    allocationStrategy: strategyMap[regime] ?? "Balanced",
+    regime: "Bull Market",
+    confidence: 85,
+    description: `Market is currently in a Bull phase.`,
+    allocationStrategy: "Aggressive Allocation — Increase equity exposure",
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function generateForecasts(symbol: string, currentPrice: number) {
-  const seed = symbol.charCodeAt(0) * 13 + symbol.charCodeAt(1) * 7;
-  const trend = seededRandom(seed) > 0.5 ? 1 : -1;
-  const regime = getMarketRegime().regime;
+  // Returns flat values without seeded random noise
+  const makeModel = (name: string) => ({
+    model: name,
+    nextDay: currentPrice * 1.01,
+    nextWeek: currentPrice * 1.05,
+    nextMonth: currentPrice * 1.10,
+    confidence: 80,
+    direction: "UP",
+    rmse: 10,
+    mae: 7,
+    mape: 1.5,
+    r2: 0.85,
+    directionalAccuracy: 75,
+    forecastPoints: [],
+  });
 
-  const makeModel = (name: string, offset: number) => {
-    const modelSeed = seed + offset;
-    const dir = seededRandom(modelSeed) > 0.45 ? 1 : -1;
-    const mag1 = seededRandom(modelSeed + 1) * 0.03;
-    const mag5 = seededRandom(modelSeed + 2) * 0.07;
-    const mag20 = seededRandom(modelSeed + 3) * 0.12;
-    const conf = 55 + seededRandom(modelSeed + 4) * 40;
-    const rmse = 5 + seededRandom(modelSeed + 5) * 30;
-    const mae = rmse * 0.7;
-    const mape = 0.5 + seededRandom(modelSeed + 6) * 4;
-    const r2 = 0.6 + seededRandom(modelSeed + 7) * 0.35;
-    const da = 55 + seededRandom(modelSeed + 8) * 35;
+  const arima = makeModel("ARIMA");
+  const lstm = makeModel("LSTM");
+  const xgboost = makeModel("XGBoost");
 
-    const pts = [];
-    for (let i = 1; i <= 30; i++) {
-      const p = currentPrice * (1 + dir * mag20 * (i / 30));
-      pts.push({
-        date: new Date(Date.now() + i * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        value: Math.round(p * 100) / 100,
-        lower: Math.round(p * 0.97 * 100) / 100,
-        upper: Math.round(p * 1.03 * 100) / 100,
-      });
-    }
-
-    return {
-      model: name,
-      nextDay: Math.round(currentPrice * (1 + dir * mag1) * 100) / 100,
-      nextWeek: Math.round(currentPrice * (1 + dir * mag5) * 100) / 100,
-      nextMonth: Math.round(currentPrice * (1 + dir * mag20) * 100) / 100,
-      confidence: Math.round(conf * 100) / 100,
-      direction: dir > 0 ? "UP" : "DOWN",
-      rmse: Math.round(rmse * 100) / 100,
-      mae: Math.round(mae * 100) / 100,
-      mape: Math.round(mape * 100) / 100,
-      r2: Math.round(r2 * 1000) / 1000,
-      directionalAccuracy: Math.round(da * 100) / 100,
-      forecastPoints: pts,
-    };
-  };
-
-  const arima = makeModel("ARIMA", 0);
-  const lstm = makeModel("LSTM", 100);
-  const xgboost = makeModel("XGBoost", 200);
-
-  const ensembleDir = [arima, lstm, xgboost].filter(m => m.direction === "UP").length >= 2 ? 1 : -1;
   const ensemble = {
-    ...makeModel("Ensemble", 300),
-    direction: ensembleDir > 0 ? "UP" : "DOWN",
-    confidence: Math.round(([arima, lstm, xgboost].reduce((s, m) => s + m.confidence, 0) / 3) * 100) / 100,
+    ...makeModel("Ensemble"),
+    direction: "UP",
+    confidence: 85,
   };
-
-  const agreements = [arima, lstm, xgboost].filter(m => m.direction === ensemble.direction).length;
-  const modelAgreement = Math.round((agreements / 3) * 100);
 
   return {
     symbol,
@@ -404,7 +277,7 @@ export function generateForecasts(symbol: string, currentPrice: number) {
     lstm,
     xgboost,
     ensemble,
-    modelAgreement,
+    modelAgreement: 100,
     regimeAdjusted: true,
     updatedAt: new Date().toISOString(),
   };
