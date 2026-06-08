@@ -64,6 +64,8 @@ export const ICICI_TO_SYMBOL: Record<string, string> = Object.fromEntries(
 
 export const marketEventBus = new EventEmitter();
 export const currentPrices = new Map<string, number>();
+export const openPrices = new Map<string, number>();
+export const currentVolumes = new Map<string, number>();
 
 let breeze: any = null;
 let fallbackInterval: NodeJS.Timeout | null = null;
@@ -105,14 +107,14 @@ export async function connectIciciWSS() {
 
     // Subscribe to events
     breeze.on('ticks', (ticks: any) => {
-      // The tick object structure from ICICI
-      // ticks: { stock_code: "RELI", last: 2500, ... }
       const stockCode = ticks?.stock_code;
       if (stockCode && ICICI_TO_SYMBOL[stockCode]) {
         const symbol = ICICI_TO_SYMBOL[stockCode];
         const newPrice = Number(ticks.last) || currentPrices.get(symbol) || 0;
+        const newVolume = Number(ticks.total_quantity_traded || ticks.ttq || ticks.volume || 0);
         
         currentPrices.set(symbol, newPrice);
+        if (newVolume > 0) currentVolumes.set(symbol, newVolume);
         
         marketEventBus.emit("price_update", {
           symbol: symbol,
@@ -163,9 +165,18 @@ export async function connectIciciWSS() {
           
           if (data) {
             // Check all possible field names returned by ICICI
-            const price = Number(data.ltp || data.last || data.close_price || data.previous_close || data.close || 0);
+            const price = Number(data.ltp || data.last || data.close_price || data.close || 0);
+            const prevClose = Number(data.previous_close || data.open_price || price);
+            const volume = Number(data.total_quantity_traded || data.volume || data.TotalQunatityTraded || data.ttq || 0);
+            
             if (price > 0) {
               currentPrices.set(symbol, price);
+              if (prevClose > 0 && !openPrices.has(symbol)) {
+                openPrices.set(symbol, prevClose);
+              }
+              if (volume > 0) {
+                currentVolumes.set(symbol, volume);
+              }
               marketEventBus.emit("price_update", {
                 symbol: symbol,
                 price: price,

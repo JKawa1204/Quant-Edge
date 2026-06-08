@@ -23,8 +23,10 @@ export default function StockDetail() {
   useEffect(() => {
     if (!symbol) return;
     const t = setTimeout(() => {
-      fetch(`/api/stocks/${symbol}/feature-engineering`, {
-        headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+      const API = import.meta.env.VITE_API_URL || "";
+      const token = localStorage.getItem('quantedge_token');
+      fetch(`${API}/api/stocks/${symbol}/feature-engineering`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
       })
       .then(r => r.json())
       .then(d => { if (!d.error) setFeatures(d); })
@@ -37,11 +39,13 @@ export default function StockDetail() {
   useEffect(() => {
     if (!symbol) return;
     const t = setTimeout(() => {
-      fetch(`/api/ai/commentary`, {
+      const API = import.meta.env.VITE_API_URL || "";
+      const token = localStorage.getItem('quantedge_token');
+      fetch(`${API}/api/ai/commentary`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem('token')}`
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ 
           type: "stock", 

@@ -53,7 +53,7 @@ const NIFTY_STOCKS: Record<string, { company: string; sector: string; industry: 
   "TRENT": { company: "Trent", sector: "Consumer", industry: "Retail", basePrice: 5800 },
 };
 
-import { currentPrices } from "./iciciWebsocket.js";
+import { currentPrices, openPrices, currentVolumes } from "./iciciWebsocket.js";
 
 export function getCurrentPrice(symbol: string): number {
   if (currentPrices && currentPrices.has(symbol)) {
@@ -63,7 +63,17 @@ export function getCurrentPrice(symbol: string): number {
 }
 
 export function getDayOpenPrice(symbol: string): number {
+  if (openPrices && openPrices.has(symbol)) {
+    return openPrices.get(symbol)!;
+  }
   return NIFTY_STOCKS[symbol]?.basePrice ?? 0;
+}
+
+export function getDayVolume(symbol: string): number {
+  if (currentVolumes && currentVolumes.has(symbol)) {
+    return currentVolumes.get(symbol)!;
+  }
+  return 800000;
 }
 
 export function getStockInfo(symbol: string) {
@@ -78,13 +88,22 @@ export function searchStocks(query: string) {
   const q = query.toLowerCase();
   return Object.entries(NIFTY_STOCKS)
     .filter(([sym, info]) => sym.toLowerCase().includes(q) || info.company.toLowerCase().includes(q))
-    .map(([symbol, info]) => ({
-      symbol,
-      company: info.company,
-      sector: info.sector,
-      industry: info.industry,
-      exchange: "NSE",
-    }));
+    .map(([symbol, info]) => {
+      const price = getCurrentPrice(symbol);
+      const prevPrice = getDayOpenPrice(symbol);
+      const change = price - prevPrice;
+      return {
+        symbol,
+        company: info.company,
+        sector: info.sector,
+        industry: info.industry,
+        exchange: "NSE",
+        price,
+        change: Math.round(change * 100) / 100,
+        changePct: Math.round((change / prevPrice) * 10000) / 100,
+        volume: getDayVolume(symbol)
+      };
+    });
 }
 
 export function getCandles(symbol: string, timeframe: string, limit: number = 100) {
@@ -97,7 +116,7 @@ export function getStockDetail(symbol: string) {
   if (!info) return null;
 
   const price = getCurrentPrice(symbol);
-  const prevPrice = info.basePrice;
+  const prevPrice = getDayOpenPrice(symbol);
 
   return {
     symbol,
@@ -122,7 +141,7 @@ export function getStockDetail(symbol: string) {
     beta: 1.1,
     volatility: 15,
     avgVolume: 1000000,
-    currentVolume: 800000,
+    currentVolume: getDayVolume(symbol),
     currentPrice: price,
     change: Math.round((price - prevPrice) * 100) / 100,
     changePct: Math.round(((price - prevPrice) / prevPrice) * 10000) / 100,
@@ -243,14 +262,29 @@ export function getMarketRegime() {
   };
 }
 
-export function generateForecasts(symbol: string, currentPrice: number) {
-  // Returns flat values without seeded random noise
+export async function generateForecasts(symbol: string, currentPrice: number) {
+  const mlServiceUrl = process.env.ML_SERVICE_URL;
+  if (mlServiceUrl) {
+    try {
+      const res = await fetch(`${mlServiceUrl}/ml/forecast/${symbol}`);
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      } else {
+        console.error(`ML service returned status ${res.status}`);
+      }
+    } catch (e: any) {
+      console.error(`Failed to fetch from ML service at ${mlServiceUrl}:`, e.message);
+    }
+  }
+
+  // Returns flat values without seeded random noise as fallback
   const makeModel = (name: string) => ({
     model: name,
     nextDay: currentPrice * 1.01,
     nextWeek: currentPrice * 1.05,
     nextMonth: currentPrice * 1.10,
-    confidence: 80,
+    confidence: 0.80,
     direction: "UP",
     rmse: 10,
     mae: 7,
@@ -267,7 +301,7 @@ export function generateForecasts(symbol: string, currentPrice: number) {
   const ensemble = {
     ...makeModel("Ensemble"),
     direction: "UP",
-    confidence: 85,
+    confidence: 0.85,
   };
 
   return {
@@ -277,7 +311,7 @@ export function generateForecasts(symbol: string, currentPrice: number) {
     lstm,
     xgboost,
     ensemble,
-    modelAgreement: 100,
+    modelAgreement: 1.0,
     regimeAdjusted: true,
     updatedAt: new Date().toISOString(),
   };

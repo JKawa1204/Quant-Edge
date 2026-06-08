@@ -9,14 +9,14 @@ router.get("/forecasts/:symbol", requireAuth, async (req, res): Promise<void> =>
   const params = GetForecastsParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid symbol" }); return; }
   const price = getCurrentPrice(params.data.symbol);
-  res.json(generateForecasts(params.data.symbol, price));
+  res.json(await generateForecasts(params.data.symbol, price));
 });
 
 router.post("/forecasts/:symbol/run", requireAuth, async (req, res): Promise<void> => {
   const params = RunForecastParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid symbol" }); return; }
   const price = getCurrentPrice(params.data.symbol);
-  res.json(generateForecasts(params.data.symbol, price));
+  res.json(await generateForecasts(params.data.symbol, price));
 });
 
 router.get("/forecasts/analytics/comparison", requireAuth, async (_req, res): Promise<void> => {
