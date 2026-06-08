@@ -40,9 +40,12 @@ router.get("/portfolio", requireAuth, async (req, res): Promise<void> => {
     const curP     = getCurrentPrice(h.symbol);
     const openP    = getDayOpenPrice(h.symbol);
 
+    const isBoughtToday = new Date(h.createdAt).toDateString() === new Date().toDateString();
+    const referencePrice = isBoughtToday ? buyP : openP;
+
     investedTotal += qty * buyP;
     currentTotal  += qty * curP;
-    todayPnl      += qty * (curP - openP);
+    todayPnl      += qty * (curP - referencePrice);
   }
 
   const overallPnl    = currentTotal - investedTotal;
@@ -83,10 +86,13 @@ router.get("/portfolio/holdings", requireAuth, async (req, res): Promise<void> =
     const buyP  = Number(h.buyPrice);
     const qty   = h.quantity;
 
+    const isBoughtToday = new Date(h.createdAt).toDateString() === new Date().toDateString();
+    const referencePrice = isBoughtToday ? buyP : openP;
+
     const overallPnl    = (curP - buyP) * qty;
-    const todayPnl      = (curP - openP) * qty;
+    const todayPnl      = (curP - referencePrice) * qty;
     const overallPnlPct = buyP > 0 ? ((curP - buyP) / buyP) * 100 : 0;
-    const todayPnlPct   = openP > 0 ? ((curP - openP) / openP) * 100 : 0;
+    const todayPnlPct   = referencePrice > 0 ? ((curP - referencePrice) / referencePrice) * 100 : 0;
 
     totalCurrentValue += curP * qty;
 

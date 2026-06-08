@@ -51,8 +51,8 @@ router.get("/stocks/:symbol/candles/:timeframe", requireAuth, async (req, res): 
 
       const iciciData = await breeze.getHistoricalDatav2({
         interval: interval,
-        fromDate: fromDate.toISOString(),
-        toDate: toDate.toISOString(),
+      fromDate: fromDate.toISOString().split('.')[0] + '.000Z',
+      toDate: toDate.toISOString().split('.')[0] + '.000Z',
         stockCode: stockCode,
         exchangeCode: "NSE",
         productType: "cash"
@@ -105,8 +105,8 @@ router.get("/stocks/:symbol/feature-engineering", requireAuth, async (req, res):
 
     const iciciData = await breeze.getHistoricalDatav2({
       interval: "1day",
-      fromDate: fromDate.toISOString(),
-      toDate: toDate.toISOString(),
+      fromDate: fromDate.toISOString().split('.')[0] + '.000Z',
+      toDate: toDate.toISOString().split('.')[0] + '.000Z',
       stockCode: stockCode,
       exchangeCode: "NSE",
       productType: "cash"
