@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetWatchlists, getGetWatchlistsQueryKey, useSearchStocks, getSearchStocksQueryKey, useAddToWatchlist } from "@workspace/api-client-react";
 import { formatCurrency, formatPercentage, formatNumber, getColorForValue } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,32 @@ export default function Watchlist() {
   const { data: watchlists, isLoading } = useGetWatchlists({ query: { queryKey: getGetWatchlistsQueryKey() } });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("");
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let wsUrl = "ws://localhost:3000/";
+    if (import.meta.env.VITE_WS_URL) {
+      wsUrl = import.meta.env.VITE_WS_URL;
+    } else if (window.location.hostname !== "localhost") {
+      wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`;
+    }
+      
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "PRICE_UPDATE") {
+          const { symbol, price } = msg.data;
+          setLivePrices(prev => ({ ...prev, [symbol]: price }));
+        }
+      } catch (e) {
+        console.error("WebSocket decode error", e);
+      }
+    };
+
+    return () => ws.close();
+  }, []);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -71,7 +97,9 @@ export default function Watchlist() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {w.stocks.map(stock => (
+                    {w.stocks.map(stock => {
+                      const currentPrice = livePrices[stock.symbol] || stock.price;
+                      return (
                       <TableRow key={stock.id}>
                         <TableCell className="font-medium">
                           <div className="flex flex-col">
@@ -81,7 +109,7 @@ export default function Watchlist() {
                             <span className="text-xs text-muted-foreground">{stock.company}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono">{formatCurrency(stock.price)}</TableCell>
+                        <TableCell className="font-mono">{formatCurrency(currentPrice)}</TableCell>
                         <TableCell className={`font-mono ${getColorForValue(stock.change)}`}>
                           {stock.change > 0 ? '+' : ''}{formatCurrency(stock.change)} ({stock.change > 0 ? '+' : ''}{formatPercentage(stock.changePct)})
                         </TableCell>
@@ -107,7 +135,7 @@ export default function Watchlist() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )})}
                     {w.stocks.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">

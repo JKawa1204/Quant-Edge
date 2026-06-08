@@ -607,10 +607,10 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
 
 // ── Buy/Sell Modal ──────────────────────────────────────────────────────────
 function TradeModal({
-  mode, symbol, maxQty, currentPrice, onClose, onDone,
+  mode, symbol, maxQty, currentPrice, livePrices, onClose, onDone,
 }: {
   mode: "buy" | "sell"; symbol?: string; maxQty?: number;
-  currentPrice?: number; onClose: () => void; onDone: () => void;
+  currentPrice?: number; livePrices?: Record<string, number>; onClose: () => void; onDone: () => void;
 }) {
   const [sym, setSym]       = useState(symbol ?? "");
   const [qty, setQty]       = useState(1);
@@ -618,6 +618,13 @@ function TradeModal({
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const livePrice = currentPrice || (livePrices && sym ? livePrices[sym.toUpperCase()] : 0);
+    if (livePrice && livePrice > 0) {
+      setPrice(livePrice);
+    }
+  }, [currentPrice, livePrices, sym]);
 
   async function submit() {
     if (!sym || qty < 1 || price <= 0) return;
@@ -672,8 +679,10 @@ function TradeModal({
             <label className="text-xs text-muted-foreground mb-1 block">Price per share (₹)</label>
             <input
               type="number" step="0.01" min={0.01}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary disabled:opacity-50"
               value={price} onChange={e => setPrice(parseFloat(e.target.value) || 0)}
+              disabled={!!currentPrice}
+              readOnly={!!currentPrice}
             />
           </div>
 
@@ -781,6 +790,7 @@ function HoldingCard({ h, onSell }: { h: any; onSell: () => void }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Portfolio() {
   const [holdings, setHoldings]   = useState<any[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [loading, setLoading]     = useState(true);
   const [modal, setModal]         = useState<null | {
     mode: "buy" | "sell"; symbol?: string; maxQty?: number; currentPrice?: number;
@@ -791,6 +801,10 @@ export default function Portfolio() {
     try {
       const data = await apiFetch("/portfolio/holdings");
       setHoldings(data);
+      // Pre-fill livePrices with initial fetch
+      const initialPrices: Record<string, number> = {};
+      data.forEach((h: any) => { if (h.currentPrice) initialPrices[h.symbol] = h.currentPrice; });
+      setLivePrices(prev => ({ ...prev, ...initialPrices }));
     } catch (e) {
       console.error(e);
     } finally {
@@ -799,6 +813,54 @@ export default function Portfolio() {
   }, []);
 
   useEffect(() => { fetchHoldings(); }, [fetchHoldings]);
+
+  // Connect to Live Price WebSocket
+  useEffect(() => {
+    let wsUrl = "ws://localhost:3000/";
+    if (import.meta.env.VITE_WS_URL) {
+      wsUrl = import.meta.env.VITE_WS_URL;
+    } else if (window.location.hostname !== "localhost") {
+      wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`;
+    }
+      
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "PRICE_UPDATE") {
+          const { symbol, price } = msg.data;
+          
+          setLivePrices(prev => ({ ...prev, [symbol]: price }));
+          
+          setHoldings(prev => prev.map(h => {
+            if (h.symbol === symbol) {
+              const prevClose = h.prevClose || h.avgBuyPrice;
+              const todayPnl = (price - prevClose) * h.quantity;
+              const todayPnlPct = ((price - prevClose) / prevClose) * 100;
+              const overallPnl = (price - h.avgBuyPrice) * h.quantity;
+              const overallPnlPct = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
+              const currentValue = price * h.quantity;
+              
+              return { ...h, currentPrice: price, todayPnl, todayPnlPct, overallPnl, overallPnlPct, currentValue };
+            }
+            return h;
+          }));
+
+          setModal(prev => {
+            if (prev && prev.symbol === symbol) {
+              return { ...prev, currentPrice: price };
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.error("WebSocket decode error", e);
+      }
+    };
+
+    return () => ws.close();
+  }, []);
 
   const totalTodayPnl   = holdings.reduce((s, h) => s + h.todayPnl, 0);
   const totalOverallPnl = holdings.reduce((s, h) => s + h.overallPnl, 0);
@@ -810,6 +872,8 @@ export default function Portfolio() {
       {modal && (
         <TradeModal
           {...modal}
+          currentPrice={modal.symbol ? livePrices[modal.symbol] : undefined}
+          livePrices={livePrices}
           onClose={() => setModal(null)}
           onDone={() => { setModal(null); fetchHoldings(); }}
         />

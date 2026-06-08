@@ -769,13 +769,29 @@ export default function Dashboard() {
 
   const [holdings, setHoldings]         = useState<any[]>([]);
   const [loadingHoldings, setLoadingH]  = useState(true);
+  const [iciciConnected, setIciciConnected] = useState(false);
 
   const loadHoldings = useCallback(async () => {
     setLoadingH(true);
     try { setHoldings(await fetchHoldings()); } catch { setHoldings([]); } finally { setLoadingH(false); }
   }, []);
 
-  useEffect(() => { loadHoldings(); }, [loadHoldings]);
+  const checkIciciStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/icici/status`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setIciciConnected(!!data.connected);
+      }
+    } catch (e) {
+      console.error("Failed to fetch ICICI status", e);
+    }
+  }, []);
+
+  useEffect(() => { 
+    loadHoldings(); 
+    checkIciciStatus();
+  }, [loadHoldings, checkIciciStatus]);
 
   // Connect to Live Price WebSocket
   useEffect(() => {
@@ -843,22 +859,29 @@ export default function Dashboard() {
             ML forecasting pipeline for Indian equity markets — ARIMA · XGBoost · Neural Net · Ensemble
           </p>
         </div>
-        <button 
-          onClick={async () => {
-            try {
-              const res = await fetch(`${API}/icici/auth`, { headers: authHeaders() });
-              const data = await res.json();
-              if (data.url) window.location.href = data.url;
-              else alert(data.error || "Failed to initiate ICICI login");
-            } catch (err) {
-              alert("Network error connecting to broker");
-            }
-          }}
-          className="bg-[#D9381E] hover:bg-[#b02d18] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <Activity className="h-4 w-4" />
-          Connect ICICI Direct
-        </button>
+        {iciciConnected ? (
+          <div className="bg-green-500/10 text-green-500 border border-green-500/20 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm">
+            <Zap className="h-4 w-4" />
+            Connected to ICICI Direct
+          </div>
+        ) : (
+          <button 
+            onClick={async () => {
+              try {
+                const res = await fetch(`${API}/icici/auth`, { headers: authHeaders() });
+                const data = await res.json();
+                if (data.url) window.location.href = data.url;
+                else alert(data.error || "Failed to initiate ICICI login");
+              } catch (err) {
+                alert("Network error connecting to broker");
+              }
+            }}
+            className="bg-[#D9381E] hover:bg-[#b02d18] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Activity className="h-4 w-4" />
+            Connect ICICI Direct
+          </button>
+        )}
       </div>
 
       {/* KPI strip */}

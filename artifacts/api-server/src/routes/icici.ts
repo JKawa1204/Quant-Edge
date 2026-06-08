@@ -4,6 +4,7 @@ import { db, iciciTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 // @ts-ignore
 import { BreezeConnect } from "breezeconnect";
+import { connectIciciWSS, stopIciciWSS } from "../lib/iciciWebsocket.js";
 
 const router = Router();
 type AuthReq = import("express").Request & { userId: number };
@@ -17,11 +18,6 @@ export async function getBreezeInstance(userId: number) {
   if (!appKey) throw new Error("ICICI_APP_KEY not configured");
 
   const breeze = new BreezeConnect({ appKey });
-  // Since we already have the generated session token stored, we might just need to set it,
-  // but BreezeConnect usually expects us to generate it. However, the JS SDK
-  // holds the token internally once generated.
-  // Actually, generateSession is what sets the token in the SDK.
-  // According to the JS SDK docs: breeze.generateSession(secret_key, session_token)
   await breeze.generateSession(process.env.ICICI_SECRET_KEY, row.sessionToken);
   
   return breeze;
@@ -68,6 +64,10 @@ router.post("/icici/callback", requireAuth, async (req, res): Promise<void> => {
           updatedAt: new Date(),
         },
       });
+
+    // Reconnect WebSocket Feed globally using the new token
+    stopIciciWSS();
+    await connectIciciWSS();
 
     res.json({ success: true, message: "ICICI Direct connected successfully." });
   } catch (error: any) {
