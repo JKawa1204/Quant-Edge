@@ -55,6 +55,10 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
             X_test_s = scaler.transform(X_test)
             iterations = getattr(model, "n_iter_", 0)
         else:
+            if os.getenv("RENDER"):
+                raise RuntimeError(f"Pre-trained NeuralNet for {symbol} not found. Local training disabled on Render to prevent OOM.")
+            
+            # Fallback (may cause OOM on small servers)
             scaler = StandardScaler()
             X_train_s = scaler.fit_transform(X_train)
             X_test_s  = scaler.transform(X_test)

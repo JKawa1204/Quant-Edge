@@ -33,7 +33,7 @@ export function RegimeBadge({ regime, confidence }: { regime: string, confidence
   return (
     <Badge variant="outline" className={className}>
       {regime.toUpperCase()}
-      {confidence ? ` (${(confidence * 100).toFixed(0)}%)` : ''}
+      {confidence ? ` (${(confidence).toFixed(0)}%)` : ''}
     </Badge>
   );
 }

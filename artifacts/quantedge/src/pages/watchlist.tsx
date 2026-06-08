@@ -195,11 +195,11 @@ export default function Watchlist() {
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                               <div 
-                                className={`h-full ${stock.confidence > 0.7 ? 'bg-chart-1' : stock.confidence > 0.4 ? 'bg-chart-3' : 'bg-destructive'}`} 
-                                style={{ width: `${stock.confidence * 100}%` }}
+                                className={`h-full ${stock.confidence > 70 ? 'bg-chart-1' : stock.confidence > 40 ? 'bg-chart-3' : 'bg-destructive'}`} 
+                                style={{ width: `${stock.confidence}%` }}
                               />
                             </div>
-                            <span className="text-xs text-muted-foreground">{(stock.confidence * 100).toFixed(0)}%</span>
+                            <span className="text-xs text-muted-foreground">{(stock.confidence).toFixed(0)}%</span>
                           </div>
                         </TableCell>
                       </TableRow>

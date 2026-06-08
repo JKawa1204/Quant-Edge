@@ -129,7 +129,7 @@ export default function StockDetail() {
                         {f.direction}
                       </span>
                       <span className="text-muted-foreground w-12 text-right">
-                        {(f.confidence * 100).toFixed(0)}%
+                        {(f.confidence).toFixed(0)}%
                       </span>
                     </div>
                   </div>
@@ -137,7 +137,7 @@ export default function StockDetail() {
               })}
               <div className="pt-4 border-t text-sm flex justify-between">
                 <span className="text-muted-foreground">Agreement Score</span>
-                <span className="font-bold">{(forecast?.modelAgreement ? forecast.modelAgreement * 100 : 0).toFixed(0)}%</span>
+                <span className="font-bold">{(forecast?.ensemble?.modelAgreement ? forecast.ensemble.modelAgreement : 0).toFixed(0)}%</span>
               </div>
             </CardContent>
           </Card>

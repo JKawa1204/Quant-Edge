@@ -89,6 +89,9 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
             scaler = saved["scaler"]
             X_test_s = scaler.transform(X_test)
         else:
+            if os.getenv("RENDER"):
+                raise RuntimeError(f"Pre-trained XGBoost for {symbol} not found. Local training disabled on Render to prevent OOM.")
+            
             # Fallback (may cause OOM on small servers)
             scaler = StandardScaler()
             X_train_s = scaler.fit_transform(X_train)

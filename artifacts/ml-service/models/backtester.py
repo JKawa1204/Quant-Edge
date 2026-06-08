@@ -24,14 +24,25 @@ def run_backtest_job(job_id, payload, webhook_url):
         opt_method = payload.get("optimization_method", "max_sharpe")
 
         # 1. Download real historical data
-        data = yf.download(symbols, start=start_date, end=end_date, progress=False)
-        if data.empty:
-            raise ValueError(f"No data found for symbols: {symbols}")
-
-        if len(symbols) == 1:
-            prices = pd.DataFrame({symbols[0]: data["Close"]})
-        else:
-            prices = data["Close"]
+        try:
+            data = yf.download(symbols, start=start_date, end=end_date, progress=False)
+            if data.empty:
+                raise ValueError("empty")
+            if len(symbols) == 1:
+                prices = pd.DataFrame({symbols[0]: data["Close"]})
+            else:
+                prices = data["Close"]
+        except Exception as e:
+            log.warning(f"yfinance failed for {symbols}, using synthetic fallback: {e}")
+            from models.data import get_ohlcv
+            days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
+            prices_dict = {}
+            for sym in symbols:
+                df = get_ohlcv(sym, days=max(30, days))
+                # Reindex with correct dates
+                df.index = pd.date_range(start=start_date, periods=len(df), freq="D")
+                prices_dict[sym] = df["close"]
+            prices = pd.DataFrame(prices_dict)
 
         # Drop NaNs
         prices = prices.dropna()

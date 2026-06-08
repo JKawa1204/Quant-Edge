@@ -111,8 +111,8 @@ function DetailPanel({ id }: { id: number }) {
     );
   }
 
-  if ("error" in data! || !data!.equityCurve) {
-    return <div className="p-8 text-center text-red-400">Failed to load backtest data: {(data as any).error || "Missing data"}</div>;
+  if (!data || "error" in data || !data.equityCurve) {
+    return <div className="p-8 text-center text-red-400">Failed to load backtest data: {data ? (data as any).error : "Unknown error"}</div>;
   }
 
   useEffect(() => {

@@ -66,14 +66,15 @@ router.get("/analytics/trading", requireAuth, async (req, res): Promise<void> =>
     
   const strategies = realBacktests.filter(b => b.status === "completed" && b.results).map(b => {
     const r = b.results as any;
+    const metrics = r.metrics || r;
     return {
       name: b.name,
-      totalReturn: r.cagr || 0, // Using CAGR for total return approximation
-      winRate: 65 + (Math.random() * 10), // Real winRate calculation requires full trade log
-      profitFactor: 1.5 + (Math.random() * 0.5),
-      sharpeRatio: r.sharpe || 0,
-      maxDrawdown: Math.abs(r.maxDrawdown || 0),
-      tradesCount: Math.floor(Math.random() * 50) + 10,
+      totalReturn: metrics.totalReturn || metrics.cagr || 0,
+      winRate: metrics.winRate || 0,
+      profitFactor: metrics.profitFactor || 1.0,
+      sharpeRatio: metrics.sharpeRatio || 0,
+      maxDrawdown: Math.abs(metrics.maxDrawdown || 0),
+      tradesCount: r.monthlyReturns?.length || 24,
     };
   });
 

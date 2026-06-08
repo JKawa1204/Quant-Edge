@@ -554,14 +554,14 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
                                 <div className="w-14 h-1.5 bg-muted rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full ${
-                                      stock.confidence >= 0.8 ? "bg-green-400" :
-                                      stock.confidence >= 0.6 ? "bg-yellow-400" : "bg-red-400"
+                                      stock.confidence >= 80 ? "bg-green-400" :
+                                      stock.confidence >= 60 ? "bg-yellow-400" : "bg-red-400"
                                     }`}
-                                    style={{ width: `${stock.confidence * 100}%` }}
+                                    style={{ width: `${stock.confidence}%` }}
                                   />
                                 </div>
                                 <span className="text-[10px] font-mono text-muted-foreground">
-                                  {(stock.confidence * 100).toFixed(0)}%
+                                  {(stock.confidence).toFixed(0)}%
                                 </span>
                               </div>
                             </td>

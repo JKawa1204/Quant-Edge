@@ -100,11 +100,11 @@ export default function Signals() {
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                           <div 
-                            className={`h-full ${signal.confidence > 0.7 ? 'bg-green-400' : signal.confidence > 0.4 ? 'bg-yellow-400' : 'bg-red-400'}`} 
-                            style={{ width: `${signal.confidence * 100}%` }}
+                            className={`h-full ${signal.confidence > 70 ? 'bg-green-400' : signal.confidence > 40 ? 'bg-yellow-400' : 'bg-red-400'}`} 
+                            style={{ width: `${signal.confidence}%` }}
                           />
                         </div>
-                        <span className="text-xs text-muted-foreground">{(signal.confidence * 100).toFixed(0)}%</span>
+                        <span className="text-xs text-muted-foreground">{(signal.confidence).toFixed(0)}%</span>
                       </div>
                     </TableCell>
                     <TableCell className={signal.forecastReturn > 0 ? 'text-green-400' : 'text-red-400'}>
