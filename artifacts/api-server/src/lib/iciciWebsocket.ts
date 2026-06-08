@@ -6,21 +6,56 @@ import { BreezeConnect } from "breezeconnect";
 
 // ICICI specific Stock Codes mapped to our general NIFTY symbol strings
 export const SYMBOL_TO_ICICI: Record<string, string> = {
-  RELIANCE:    "RELI",
-  TCS:         "TCS",
-  HDFCBANK:    "HDFBAN",
-  INFY:        "INFTEC",
-  ICICIBANK:   "ICIBAN",
-  WIPRO:       "WIPRO",
-  AXISBANK:    "AXIBAN",
-  BHARTIARTL:  "BHAART",
-  KOTAKBANK:   "KOTMAH",
-  LT:          "LARTOU",
-  ITC:         "ITC",
-  BAJFINANCE:  "BAJFI",
-  MARUTI:      "MARUTI",
-  SUNPHARMA:   "SUNPHA",
-  TITAN:       "TITIND",
+  "RELIANCE": "RELIND",
+  "TCS": "TCS",
+  "HDFCBANK": "HDFBAN",
+  "INFY": "INFTEC",
+  "HINDUNILVR": "HINLEV",
+  "ICICIBANK": "ICIBAN",
+  "WIPRO": "WIPRO",
+  "AXISBANK": "AXIBAN",
+  "BHARTIARTL": "BHAAIR",
+  "KOTAKBANK": "KOTMAH",
+  "LT": "LARTOU",
+  "ITC": "ITC",
+  "BAJFINANCE": "BAJFI",
+  "MARUTI": "MARUTI",
+  "SUNPHARMA": "SUNPHA",
+  "TITAN": "TITIND",
+  "ULTRACEMCO": "ULTCEM",
+  "ADANIPORTS": "ADAPOR",
+  "POWERGRID": "POWGRI",
+  "NTPC": "NTPC",
+  "ADANIENT": "ADAENT",
+  "APOLLOHOSP": "APOHOS",
+  "ASIANPAINT": "ASIPAI",
+  "BAJAJ-AUTO": "BAAUTO",
+  "BAJAJFINSV": "BAFINS",
+  "BPCL": "BHAPET",
+  "BRITANNIA": "BRIIND",
+  "CIPLA": "CIPLA",
+  "COALINDIA": "COALIN",
+  "DIVISLAB": "DIVLAB",
+  "DRREDDY": "DRREDD",
+  "EICHERMOT": "EICMOT",
+  "GRASIM": "GRASIM",
+  "HCLTECH": "HCLTEC",
+  "HDFCLIFE": "HDFSTA",
+  "HEROMOTOCO": "HERHON",
+  "HINDALCO": "HINDAL",
+  "INDUSINDBK": "INDBA",
+  "JSWSTEEL": "JSWSTE",
+  "M&M": "MAHMAH",
+  "NESTLEIND": "NESIND",
+  "ONGC": "ONGC",
+  "SBILIFE": "SBILIF",
+  "SBIN": "STABAN",
+  "TATACONSUM": "TATGLO",
+  "TATAMOTORS": "TATMOT",
+  "TATASTEEL": "TATSTE",
+  "TECHM": "TECMAH",
+  "SHRIRAMFIN": "SHRTRA",
+  "TRENT": "TRENT"
 };
 
 export const ICICI_TO_SYMBOL: Record<string, string> = Object.fromEntries(
@@ -141,7 +176,7 @@ export async function connectIciciWSS() {
         }).catch((err: any) => {
           logger.error(`Initial quote fetch failed for ${symbol}: ${err}`);
         });
-      }, index * 1000); // 1s delay between each to avoid ICICI strict rate limits
+      }, index * 2000); // 2s delay between each to avoid ICICI strict rate limits
     });
 
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");
