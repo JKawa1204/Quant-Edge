@@ -39,6 +39,13 @@ def run_ws():
     # Connect to the local Node.js Express WebSocket server that broadcasts Upstox/Simulated data
     import os
     ws_url = os.getenv("MARKET_DATA_WS_URL", "ws://localhost:4000")
+    
+    # Auto-fix scheme if the user accidentally pastes an http/https URL
+    if ws_url.startswith("https://"):
+        ws_url = ws_url.replace("https://", "wss://")
+    elif ws_url.startswith("http://"):
+        ws_url = ws_url.replace("http://", "ws://")
+
     ws = websocket.WebSocketApp(ws_url,
                               on_open=on_open,
                               on_message=on_message,
