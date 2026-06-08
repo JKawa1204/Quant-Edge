@@ -4,10 +4,14 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 
+function authHeaders(): Record<string, string> {
+  const t = localStorage.getItem("quantedge_token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 export default function IciciCallback() {
   const [, setLocation] = useLocation();
   const [status, setStatus] = useState("Connecting to ICICI Direct...");
-  const { authHeaders } = useAuth();
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -42,7 +46,7 @@ export default function IciciCallback() {
       .catch((err) => {
         setStatus("Network Error: " + err.message);
       });
-  }, [authHeaders, setLocation]);
+  }, [setLocation]);
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">
