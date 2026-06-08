@@ -15,11 +15,12 @@ router.get("/watchlists", requireAuth, async (req, res): Promise<void> => {
 
   const result = await Promise.all(lists.map(async (list) => {
     const stocks = await db.select().from(watchlistStocksTable).where(eq(watchlistStocksTable.watchlistId, list.id));
-    const enriched = stocks.map(s => {
+    const enriched = [];
+    for (const s of stocks) {
       const info = getStockInfo(s.symbol);
       const price = getCurrentPrice(s.symbol);
-      const forecast = generateForecasts(s.symbol, price);
-      return {
+      const forecast = await generateForecasts(s.symbol, price);
+      enriched.push({
         id: s.id,
         symbol: s.symbol,
         company: info.company,
@@ -30,8 +31,8 @@ router.get("/watchlists", requireAuth, async (req, res): Promise<void> => {
         forecastDirection: forecast.ensemble.direction,
         signal: forecast.ensemble.direction === "UP" ? "BUY" : "HOLD",
         confidence: forecast.ensemble.confidence,
-      };
-    });
+      });
+    }
     return { id: list.id, name: list.name, stocks: enriched, createdAt: list.createdAt };
   }));
 
@@ -61,7 +62,7 @@ router.post("/watchlists/:id/stocks", requireAuth, async (req, res): Promise<voi
   const [stock] = await db.insert(watchlistStocksTable).values({ watchlistId: params.data.id, symbol: body.data.symbol }).returning();
   const info = getStockInfo(stock.symbol);
   const price = getCurrentPrice(stock.symbol);
-  const forecast = generateForecasts(stock.symbol, price);
+  const forecast = await generateForecasts(stock.symbol, price);
   res.status(201).json({
     id: stock.id, symbol: stock.symbol, company: info.company, price,
     change: 0, changePct: 0, volume: 500000,

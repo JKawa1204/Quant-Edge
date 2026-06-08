@@ -42,7 +42,7 @@ router.get("/dashboard/summary", requireAuth, async (req, res): Promise<void> =>
   let bestConfidence = 0;
   let bestForecastSymbol = holdings[0]?.symbol ?? "RELIANCE";
   for (const h of holdings) {
-    const f = generateForecasts(h.symbol, getCurrentPrice(h.symbol));
+    const f = await generateForecasts(h.symbol, getCurrentPrice(h.symbol));
     if (f.ensemble.confidence > bestConfidence) {
       bestConfidence = f.ensemble.confidence;
       bestForecastSymbol = h.symbol;

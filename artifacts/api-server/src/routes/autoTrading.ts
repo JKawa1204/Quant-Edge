@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth.js";
-import { db, usersTable, autoTradesTable } from "@workspace/db";
+import { db, usersTable, autoTradesTable, portfoliosTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { runAutoTradingCycle } from "../lib/autoTrader.js";
 import type { Request } from "express";
@@ -13,18 +13,28 @@ router.get("/auto-trading/status", requireAuth, async (req, res): Promise<void> 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const [lastTrade] = await db.select()
-    .from(autoTradesTable)
-    .orderBy(desc(autoTradesTable.createdAt))
-    .limit(1);
+  const [portfolio] = await db.select().from(portfoliosTable).where(eq(portfoliosTable.userId, userId));
+  
+  let lastTradeAt = null;
+  let totalAutoTrades = 0;
 
-  const totalAutoTrades = await db.select().from(autoTradesTable).then(res => res.length);
+  if (portfolio) {
+    const [lastTrade] = await db.select()
+      .from(autoTradesTable)
+      .where(eq(autoTradesTable.portfolioId, portfolio.id))
+      .orderBy(desc(autoTradesTable.createdAt))
+      .limit(1);
+    lastTradeAt = lastTrade?.createdAt ?? null;
+    
+    const allTrades = await db.select().from(autoTradesTable).where(eq(autoTradesTable.portfolioId, portfolio.id));
+    totalAutoTrades = allTrades.length;
+  }
 
   res.json({
     enabled: user.autoTradingEnabled,
     confidenceThreshold: Number(user.autoTradingConfidenceThreshold),
     maxPositionPct: Number(user.autoTradingMaxPositionPct),
-    lastRunAt: lastTrade?.createdAt ?? null,
+    lastRunAt: lastTradeAt,
     totalAutoTrades,
   });
 });
@@ -83,8 +93,17 @@ router.post("/auto-trading/run", requireAuth, async (req, res): Promise<void> =>
 });
 
 router.get("/auto-trading/history", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthReq).userId;
+  const [portfolio] = await db.select().from(portfoliosTable).where(eq(portfoliosTable.userId, userId));
+  
+  if (!portfolio) {
+    res.json([]);
+    return;
+  }
+
   const trades = await db.select()
     .from(autoTradesTable)
+    .where(eq(autoTradesTable.portfolioId, portfolio.id))
     .orderBy(desc(autoTradesTable.createdAt))
     .limit(50);
     

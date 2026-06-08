@@ -72,6 +72,10 @@ function DetailPanel({ id }: { id: number }) {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading scenario data…</div>;
   }
 
+  if ("error" in data || !data.equityCurve) {
+    return <div className="p-8 text-center text-red-400">Failed to load backtest data: {(data as any).error || "Missing data"}</div>;
+  }
+
   useEffect(() => {
     if (loaded && data && !aiInsight) {
       const t = setTimeout(() => {

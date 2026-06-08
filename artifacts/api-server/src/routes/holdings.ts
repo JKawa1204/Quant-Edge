@@ -15,15 +15,16 @@ router.get("/holdings", requireAuth, async (req, res): Promise<void> => {
   const holdings = await db.select().from(holdingsTable).where(eq(holdingsTable.portfolioId, portfolio.id));
 
   let totalCurrentValue = 0;
-  const enriched = holdings.map(h => {
+  const enriched = [];
+  for (const h of holdings) {
     const curP = getCurrentPrice(h.symbol);
     const buyP = Number(h.buyPrice);
     const pnl = (curP - buyP) * h.quantity;
     const returnPct = ((curP - buyP) / buyP) * 100;
     totalCurrentValue += curP * h.quantity;
-    const forecast = generateForecasts(h.symbol, curP);
-    return { h, curP, pnl, returnPct, forecastPrice: forecast.ensemble.nextWeek, recommendation: forecast.ensemble.direction === "UP" ? "BUY" : "HOLD" };
-  });
+    const forecast = await generateForecasts(h.symbol, curP);
+    enriched.push({ h, curP, pnl, returnPct, forecastPrice: forecast.ensemble.nextWeek, recommendation: forecast.ensemble.direction === "UP" ? "BUY" : "HOLD" });
+  }
 
   const result = enriched.map(({ h, curP, pnl, returnPct, forecastPrice, recommendation }) => ({
     id: h.id,

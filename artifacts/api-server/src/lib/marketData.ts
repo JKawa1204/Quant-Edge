@@ -262,57 +262,17 @@ export function getMarketRegime() {
   };
 }
 
-export async function generateForecasts(symbol: string, currentPrice: number) {
-  const mlServiceUrl = process.env.ML_SERVICE_URL;
-  if (mlServiceUrl) {
-    try {
-      const res = await fetch(`${mlServiceUrl}/ml/forecast/${symbol}`);
-      if (res.ok) {
-        const data = await res.json();
-        return data;
-      } else {
-        console.error(`ML service returned status ${res.status}`);
-      }
-    } catch (e: any) {
-      console.error(`Failed to fetch from ML service at ${mlServiceUrl}:`, e.message);
+export async function generateForecasts(symbol: string, currentPrice: number): Promise<any> {
+  const mlServiceUrl = process.env.ML_SERVICE_URL || "http://127.0.0.1:5001";
+  try {
+    const res = await fetch(`${mlServiceUrl}/ml/forecast/${symbol}`);
+    if (res.ok) {
+      return await res.json();
+    } else {
+      throw new Error(`ML service returned status ${res.status}`);
     }
+  } catch (e: any) {
+    console.error(`Failed to fetch from ML service at ${mlServiceUrl}:`, e.message);
+    throw new Error(`ML Service Unreachable. Please ensure the Python ML service is running and ML_SERVICE_URL is set.`);
   }
-
-  // Returns flat values without seeded random noise as fallback
-  const makeModel = (name: string) => ({
-    model: name,
-    nextDay: currentPrice * 1.01,
-    nextWeek: currentPrice * 1.05,
-    nextMonth: currentPrice * 1.10,
-    confidence: 0.80,
-    direction: "UP",
-    rmse: 10,
-    mae: 7,
-    mape: 1.5,
-    r2: 0.85,
-    directionalAccuracy: 75,
-    forecastPoints: [],
-  });
-
-  const arima = makeModel("ARIMA");
-  const lstm = makeModel("LSTM");
-  const xgboost = makeModel("XGBoost");
-
-  const ensemble = {
-    ...makeModel("Ensemble"),
-    direction: "UP",
-    confidence: 0.85,
-  };
-
-  return {
-    symbol,
-    currentPrice,
-    arima,
-    lstm,
-    xgboost,
-    ensemble,
-    modelAgreement: 1.0,
-    regimeAdjusted: true,
-    updatedAt: new Date().toISOString(),
-  };
 }
