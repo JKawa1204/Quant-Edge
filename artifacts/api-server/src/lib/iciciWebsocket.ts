@@ -85,13 +85,29 @@ export async function connectIciciWSS() {
 
     // Subscribe feeds for all symbols we track
     for (const [symbol, stockCode] of Object.entries(SYMBOL_TO_ICICI)) {
-      breeze.subscribeFeeds({
-        exchange_code: "NSE",
-        stock_code: stockCode,
-        product_type: "cash",
-        get_exchange_quotes: true,
-        get_market_depth: false
-      });
+      try {
+        const promise = breeze.subscribeFeeds({
+          exchangeCode: "NSE",
+          exchange_code: "NSE",
+          stockCode: stockCode,
+          stock_code: stockCode,
+          stockToken: "1.1!" + stockCode,
+          stock_token: "1.1!" + stockCode,
+          productType: "cash",
+          product_type: "cash",
+          getExchangeQuotes: true,
+          get_exchange_quotes: true,
+          getMarketDepth: false,
+          get_market_depth: false
+        });
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch((err: any) => {
+            logger.error(`Feed subscription error for ${symbol}: ${err}`);
+          });
+        }
+      } catch (err: any) {
+        logger.error(`Feed subscription sync error for ${symbol}: ${err.message}`);
+      }
     }
 
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");
