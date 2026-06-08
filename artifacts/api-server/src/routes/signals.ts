@@ -7,11 +7,12 @@ import { generateExplanation } from "../lib/explainability.js";
 
 const router = Router();
 
-router.get("/signals", requireAuth, async (_req, res): Promise<void> => {
+router.get("/signals", requireAuth, async (req, res): Promise<void> => {
   try {
     const mlUrl = process.env.ML_SERVICE_URL || "http://localhost:5000";
-    // Hit ML service for top 10 stocks
-    const mlRes = await fetch(`${mlUrl}/ml/signals`);
+    const symbols = req.query.symbols as string;
+    const url = symbols ? `${mlUrl}/ml/signals?symbols=${symbols}` : `${mlUrl}/ml/signals`;
+    const mlRes = await fetch(url);
     if (mlRes.ok) {
       const mlData = await mlRes.json();
       // Map to expected UI format

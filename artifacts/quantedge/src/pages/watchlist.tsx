@@ -31,7 +31,7 @@ export default function Watchlist() {
           
           // Fetch ML Signals for the top 15 stocks to avoid heavy computation at once
           const topSymbols = data.slice(0, 15).map((s: any) => s.symbol).join(",");
-          const mlRes = await fetch(`${baseUrl}/api/ml/signals?symbols=${topSymbols}`, { headers });
+          const mlRes = await fetch(`${baseUrl}/api/signals?symbols=${topSymbols}`, { headers });
           if (mlRes.ok) {
             const mlData = await mlRes.json();
             const signalMap: Record<string, any> = {};

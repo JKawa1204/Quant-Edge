@@ -28,10 +28,18 @@ def combine(arima: dict, xgb: dict, nn: dict) -> dict:
     next_week  = weighted_val("nextWeek")
     next_month = weighted_val("nextMonth")
 
-    # Directional vote: majority rules, tie → UP
+    # Directional vote: majority rules
     directions = [m.get("direction", "HOLD") for m in models]
     up_votes   = sum(1 for d in directions if d == "UP")
-    direction  = "UP" if up_votes >= 2 else "DOWN"
+    down_votes = sum(1 for d in directions if d == "DOWN")
+    hold_votes = sum(1 for d in directions if d == "HOLD")
+
+    if up_votes > down_votes and up_votes >= 1:
+        direction = "UP"
+    elif down_votes > up_votes and down_votes >= 1:
+        direction = "DOWN"
+    else:
+        direction = "HOLD"
 
     # Ensemble confidence: weighted average, boosted when all agree
     conf_avg = weighted_val("confidence")
@@ -39,7 +47,8 @@ def combine(arima: dict, xgb: dict, nn: dict) -> dict:
     confidence = min(96, conf_avg + (5 if all_agree else 0))
 
     # Weighted model agreement score
-    model_agreement = int(round(max(up_votes, len(models) - up_votes) / len(models) * 100))
+    max_votes = max(up_votes, down_votes, hold_votes)
+    model_agreement = int(round(max_votes / len(models) * 100))
 
     # Ensemble forecast points — weighted average per step
     steps = max(
