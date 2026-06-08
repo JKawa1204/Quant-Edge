@@ -10,7 +10,7 @@ import {
 import { TrendingUp, TrendingDown, Activity, Shield, Zap, ChevronDown, ChevronUp, Award } from "lucide-react";
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-const API = `${BASE}/api`;
+const API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : `${BASE}/api`;
 
 function authHdr(): Record<string, string> {
   const t = localStorage.getItem("quantedge_token");

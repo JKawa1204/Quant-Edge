@@ -16,7 +16,7 @@ import {
 import { formatCurrency } from "@/lib/format";
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-const API = `${BASE}/api`;
+const API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : `${BASE}/api`;
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("quantedge_token");

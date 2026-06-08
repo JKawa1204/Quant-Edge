@@ -18,7 +18,7 @@ import {
 import { QuantitativeTests } from "@/components/QuantitativeTests";
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-const API = `${BASE}/api`;
+const API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : `${BASE}/api`;
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("quantedge_token");
@@ -779,10 +779,14 @@ export default function Dashboard() {
 
   // Connect to Live Price WebSocket
   useEffect(() => {
-    // In dev, the API server is on 3000. In prod, it's relative.
-    const wsUrl = window.location.hostname === "localhost" 
-      ? "ws://localhost:3000/"
-      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`;
+    // In dev, the API server is on 3000. In prod, we use VITE_WS_URL or relative host.
+    let wsUrl = "ws://localhost:3000/";
+    
+    if (import.meta.env.VITE_WS_URL) {
+      wsUrl = import.meta.env.VITE_WS_URL;
+    } else if (window.location.hostname !== "localhost") {
+      wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`;
+    }
       
     const ws = new WebSocket(wsUrl);
 
