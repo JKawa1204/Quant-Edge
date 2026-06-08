@@ -74,14 +74,22 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        # Check for pre-trained model
+        # Check for pre-trained model (with or without .NS)
         model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_xgboost.pkl")
+        model_path_ns = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}.NS_xgboost.pkl")
+        
         if os.path.exists(model_path):
             saved = joblib.load(model_path)
             model = saved["model"]
             scaler = saved["scaler"]
             X_test_s = scaler.transform(X_test)
+        elif os.path.exists(model_path_ns):
+            saved = joblib.load(model_path_ns)
+            model = saved["model"]
+            scaler = saved["scaler"]
+            X_test_s = scaler.transform(X_test)
         else:
+            # Fallback (may cause OOM on small servers)
             scaler = StandardScaler()
             X_train_s = scaler.fit_transform(X_train)
             X_test_s  = scaler.transform(X_test)

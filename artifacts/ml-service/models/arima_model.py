@@ -20,8 +20,12 @@ def forecast(df, steps: int = 30) -> dict:
 
     try:
         model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_arima.pkl")
-        if os.path.exists(model_path):
-            result = joblib.load(model_path)
+        model_path_ns = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}.NS_arima.pkl")
+        
+        target_path = model_path if os.path.exists(model_path) else (model_path_ns if os.path.exists(model_path_ns) else None)
+
+        if target_path:
+            result = joblib.load(target_path)
             # Pre-trained auto_arima model returns forecasts differently than statsmodels
             # `result.predict` directly gives predictions
             try:

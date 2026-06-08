@@ -100,6 +100,7 @@ def get_ohlcv(symbol: str, days: int = 252) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"])
     df.set_index("date", inplace=True)
+    df.name = symbol
     return df
 
 

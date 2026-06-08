@@ -40,8 +40,16 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
         y_train, y_test = y[:split], y[split:]
 
         model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_neural.pkl")
+        model_path_ns = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}.NS_neural.pkl")
+        
         if os.path.exists(model_path):
             saved = joblib.load(model_path)
+            model = saved["model"]
+            scaler = saved["scaler"]
+            X_test_s = scaler.transform(X_test)
+            iterations = getattr(model, "n_iter_", 0)
+        elif os.path.exists(model_path_ns):
+            saved = joblib.load(model_path_ns)
             model = saved["model"]
             scaler = saved["scaler"]
             X_test_s = scaler.transform(X_test)
