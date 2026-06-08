@@ -620,8 +620,8 @@ function TradeModal({
 
   const qty = parseInt(qtyStr) || 0;
   
-  // Calculate price dynamically from live feed, fallback to 1500
-  const currentLivePrice = currentPrice || (livePrices && sym ? livePrices[sym.toUpperCase()] : 0) || 1500;
+  // Calculate price dynamically from live feed, fallback to 0
+  const currentLivePrice = currentPrice || (livePrices && sym ? livePrices[sym.toUpperCase()] : 0) || 0;
 
   async function submit() {
     if (!sym || qty < 1) return;
@@ -675,7 +675,9 @@ function TradeModal({
 
           <div className="bg-muted/30 border border-border rounded-lg p-3 flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Market Price</span>
-            <span className="text-sm font-mono font-semibold text-primary">₹{currentLivePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="text-sm font-mono font-semibold text-primary">
+              {currentLivePrice > 0 ? `₹${currentLivePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "Fetching..."}
+            </span>
           </div>
 
           {qty > 0 && (
@@ -694,7 +696,7 @@ function TradeModal({
 
           <button
             onClick={submit}
-            disabled={loading || !sym || qty < 1}
+            disabled={loading || !sym || qty < 1 || currentLivePrice <= 0}
             className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
               mode === "buy"
                 ? "bg-green-600 hover:bg-green-500 text-white"

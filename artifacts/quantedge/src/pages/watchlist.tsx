@@ -13,8 +13,27 @@ import { Link } from "wouter";
 export default function Watchlist() {
   const { data: watchlists, isLoading } = useGetWatchlists({ query: { queryKey: getGetWatchlistsQueryKey() } });
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [allStocks, setAllStocks] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const token = localStorage.getItem("quantedge_token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : "";
+        const res = await fetch(`${baseUrl}/api/stocks/search?q=`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setAllStocks(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch all stocks", e);
+      }
+    };
+    fetchAll();
+  }, []);
 
   useEffect(() => {
     let wsUrl = "ws://localhost:3000/";
@@ -45,7 +64,27 @@ export default function Watchlist() {
     return <div>Loading...</div>;
   }
 
-  const activeWatchlist = watchlists?.find(w => w.id.toString() === activeTab) || watchlists?.[0];
+  const combinedWatchlists = [
+    {
+      id: "all",
+      name: "All Shares",
+      stocks: allStocks.map(s => ({
+        id: s.symbol,
+        symbol: s.symbol,
+        company: s.company,
+        price: 0,
+        change: 0,
+        changePct: 0,
+        volume: 0,
+        forecastDirection: "UNKNOWN",
+        signal: "HOLD",
+        confidence: 0
+      }))
+    },
+    ...(watchlists || [])
+  ];
+
+  const activeWatchlist = combinedWatchlists.find(w => w.id.toString() === activeTab) || combinedWatchlists[0];
 
   return (
     <div className="space-y-6">
@@ -67,10 +106,10 @@ export default function Watchlist() {
 
       <Card>
         <CardContent className="p-0">
-          <Tabs defaultValue={watchlists?.[0]?.id.toString()} onValueChange={setActiveTab}>
+          <Tabs defaultValue="all" onValueChange={setActiveTab}>
             <div className="border-b px-4">
               <TabsList className="bg-transparent h-12">
-                {watchlists?.map(w => (
+                {combinedWatchlists.map(w => (
                   <TabsTrigger 
                     key={w.id} 
                     value={w.id.toString()}
@@ -82,7 +121,7 @@ export default function Watchlist() {
               </TabsList>
             </div>
             
-            {watchlists?.map(w => (
+            {combinedWatchlists.map(w => (
               <TabsContent key={w.id} value={w.id.toString()} className="m-0 p-0">
                 <Table>
                   <TableHeader>
