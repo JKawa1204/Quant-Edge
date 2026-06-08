@@ -61,6 +61,17 @@ RANKINGS_CACHE_TTL = 600  # 10 minutes
 from models.live_data import start_websocket_client_thread
 start_websocket_client_thread()
 
+import threading
+from models.backtester import run_backtest_job
+
+@app.route("/ml/backtest", methods=["POST"])
+def trigger_backtest():
+    payload = request.json
+    job_id = payload.get("id")
+    webhook_url = os.getenv("NODE_API_URL", "http://localhost:4000") + "/api/backtests/callback"
+    threading.Thread(target=run_backtest_job, args=(job_id, payload, webhook_url)).start()
+    return jsonify({"status": "accepted", "job_id": job_id})
+
 
 def _cache_key(symbol: str) -> str:
     bucket = int(time.time() // CACHE_TTL)

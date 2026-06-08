@@ -25,8 +25,12 @@ def _make_sequences(prices: np.ndarray):
     return np.array(X), np.array(y)
 
 
+import os
+import joblib
+
 def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
     closes = df["close"].values.astype(float)
+    symbol = df.name if hasattr(df, "name") else "unknown"
 
     try:
         X, y = _make_sequences(closes)
@@ -35,22 +39,25 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        scaler = StandardScaler()
-        X_train_s = scaler.fit_transform(X_train)
-        X_test_s  = scaler.transform(X_test)
+        model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_neural.pkl")
+        if os.path.exists(model_path):
+            saved = joblib.load(model_path)
+            model = saved["model"]
+            scaler = saved["scaler"]
+            X_test_s = scaler.transform(X_test)
+            iterations = getattr(model, "n_iter_", 0)
+        else:
+            scaler = StandardScaler()
+            X_train_s = scaler.fit_transform(X_train)
+            X_test_s  = scaler.transform(X_test)
 
-        model = MLPRegressor(
-            hidden_layer_sizes=(128, 64),
-            activation="relu",
-            solver="adam",
-            learning_rate_init=0.001,
-            max_iter=500,
-            random_state=42,
-            early_stopping=True,
-            validation_fraction=0.1,
-            n_iter_no_change=20,
-        )
-        model.fit(X_train_s, y_train)
+            model = MLPRegressor(
+                hidden_layer_sizes=(128, 64), activation="relu", solver="adam",
+                learning_rate_init=0.001, max_iter=500, random_state=42,
+                early_stopping=True, validation_fraction=0.1, n_iter_no_change=20
+            )
+            model.fit(X_train_s, y_train)
+            iterations = model.n_iter_
 
         y_pred_test = model.predict(X_test_s)
 
@@ -99,7 +106,7 @@ def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
             "mape": round(mape, 4),
             "directionalAccuracy": round(da, 2),
             "forecastPoints": points,
-            "iterations": model.n_iter_,
+            "iterations": iterations,
             "error": None,
         }
 

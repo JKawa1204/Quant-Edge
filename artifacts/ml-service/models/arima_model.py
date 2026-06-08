@@ -10,28 +10,44 @@ from statsmodels.tsa.arima.model import ARIMA
 warnings.filterwarnings("ignore")
 
 
+import os
+import joblib
+
 def forecast(df, steps: int = 30) -> dict:
-    """
-    Fit ARIMA(5,1,0) on closing prices and forecast future values.
-
-    Returns:
-        dict with model metadata and per-step forecasts
-    """
     closes = df["close"].values.astype(float)
-
-    # Fit on last 120 candles for speed
+    symbol = df.name if hasattr(df, "name") else "unknown"
     series = closes[-120:]
 
     try:
-        model = ARIMA(series, order=(5, 1, 0))
-        result = model.fit()
-
-        forecast_obj = result.get_forecast(steps=steps)
-        pred_mean = forecast_obj.predicted_mean
-        conf_int  = forecast_obj.conf_int(alpha=0.05)  # 95% CI
-
-        # In-sample residuals for accuracy metrics
-        in_sample = result.fittedvalues
+        model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_arima.pkl")
+        if os.path.exists(model_path):
+            result = joblib.load(model_path)
+            # Pre-trained auto_arima model returns forecasts differently than statsmodels
+            # `result.predict` directly gives predictions
+            try:
+                # Update model with latest data to make correct forecasts
+                result.update(series)
+                pred_mean = result.predict(n_periods=steps)
+                conf_int_raw = result.predict(n_periods=steps, return_conf_int=True)[1]
+                conf_int = np.array(conf_int_raw)
+                
+                # In-sample for metrics
+                in_sample = result.predict_in_sample()
+            except:
+                # Fallback if update fails
+                model = ARIMA(series, order=(5, 1, 0))
+                result = model.fit()
+                forecast_obj = result.get_forecast(steps=steps)
+                pred_mean = forecast_obj.predicted_mean
+                conf_int  = forecast_obj.conf_int(alpha=0.05)
+                in_sample = result.fittedvalues
+        else:
+            model = ARIMA(series, order=(5, 1, 0))
+            result = model.fit()
+            forecast_obj = result.get_forecast(steps=steps)
+            pred_mean = forecast_obj.predicted_mean
+            conf_int  = forecast_obj.conf_int(alpha=0.05)
+            in_sample = result.fittedvalues
         actuals   = series[1:]  # ARIMA(d=1) loses first obs
         residuals = actuals - in_sample[-len(actuals):]
         rmse = float(np.sqrt(np.mean(residuals ** 2)))

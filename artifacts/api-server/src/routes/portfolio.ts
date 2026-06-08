@@ -304,4 +304,63 @@ router.get("/portfolio/performance", requireAuth, async (req, res): Promise<void
   res.json(snapshots);
 });
 
+// ── POST /portfolio/optimize ──────────────────────────────────────────────
+router.post("/portfolio/optimize", requireAuth, async (req, res): Promise<void> => {
+  const userId   = (req as AuthReq).userId;
+  const portfolio = await getUserPortfolio(userId);
+  const { method, numStocks } = req.body; // e.g. "markowitz" or "hrp"
+
+  try {
+    let symbolsToOptimize: string[] = [];
+
+    // If optimizing current portfolio
+    if (portfolio && (!numStocks || numStocks === 0)) {
+      const holdings = await db.select().from(holdingsTable).where(eq(holdingsTable.portfolioId, portfolio.id));
+      symbolsToOptimize = holdings.map(h => h.symbol);
+    } 
+    
+    // If building new portfolio
+    if (symbolsToOptimize.length === 0) {
+       const TOP_NIFTY = ["RELIANCE", "TCS", "HDFCBANK", "ICICIBANK", "INFY", "ITC", "SBIN", "BHARTIARTL", "BAJFINANCE", "LICI"];
+       symbolsToOptimize = TOP_NIFTY.slice(0, numStocks || 10);
+    }
+
+    const mlUrl = process.env.ML_SERVICE_URL || "http://localhost:5000";
+    const pyRes = await fetch(`${mlUrl}/ml/optimize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: symbolsToOptimize.map(s => s + ".NS"), method: method || "markowitz" })
+    });
+
+    if (!pyRes.ok) {
+      res.status(500).json({ error: "ML Service optimization failed" });
+      return;
+    }
+
+    const pyData = await pyRes.json();
+    // pyData should have { weights: { "RELIANCE.NS": 0.25, ... } }
+    
+    const allocations = symbolsToOptimize.map((sym, idx) => {
+      const w = (pyData.weights[sym + ".NS"] || 0) * 100;
+      return {
+        rank: idx + 1,
+        symbol: sym,
+        company: getStockInfo(sym).company || sym,
+        sector: getStockInfo(sym).sector || "Unknown",
+        suggestedWeight: Math.round(w * 10) / 10,
+        expectedContribution: Math.round(w * 0.15 * 10) / 10, // approximate 15% return
+      };
+    }).sort((a, b) => b.suggestedWeight - a.suggestedWeight);
+
+    res.json({
+       portfolio: allocations,
+       allocations: allocations // For the frontend that expects either 'portfolio' or 'allocations'
+    });
+
+  } catch (error) {
+    console.error("Optimization error:", error);
+    res.status(500).json({ error: "Failed to optimize portfolio" });
+  }
+});
+
 export default router;

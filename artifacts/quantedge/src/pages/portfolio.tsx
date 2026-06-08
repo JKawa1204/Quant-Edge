@@ -204,25 +204,19 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
     setOptLoading(true);
     setOptResult(null);
     try {
-      const r = await fetch(`${API}/auto-trading/run`, {
+      const r = await fetch(`${API}/portfolio/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ method: optMethod }),
       });
       if (r.ok) {
         const data = await r.json();
-        if (data.allocations) {
-          setOptResult(data as OptimizationResult);
-        } else {
-          // API responded but without optimization data — use mock
-          setOptResult(generateMockOptimization(holdings, optMethod));
-        }
+        setOptResult(data as OptimizationResult);
       } else {
-        setOptResult(generateMockOptimization(holdings, optMethod));
+        console.error("Optimization failed");
       }
-    } catch {
-      // ML service not available — use mock data
-      setOptResult(generateMockOptimization(holdings, optMethod));
+    } catch (err) {
+      console.error(err);
     } finally {
       setOptLoading(false);
     }
@@ -232,23 +226,19 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
     setBuildLoading(true);
     setBuildResult(null);
     try {
-      const r = await fetch(`${API}/auto-trading/run`, {
+      const r = await fetch(`${API}/portfolio/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ method: buildMethod, numStocks }),
       });
       if (r.ok) {
         const data = await r.json();
-        if (data.portfolio) {
-          setBuildResult(data.portfolio as NewPortfolioStock[]);
-        } else {
-          setBuildResult(generateMockNewPortfolio(numStocks, buildMethod));
-        }
+        setBuildResult(data.portfolio as NewPortfolioStock[]);
       } else {
-        setBuildResult(generateMockNewPortfolio(numStocks, buildMethod));
+        console.error("Build failed");
       }
-    } catch {
-      setBuildResult(generateMockNewPortfolio(numStocks, buildMethod));
+    } catch (err) {
+      console.error(err);
     } finally {
       setBuildLoading(false);
     }

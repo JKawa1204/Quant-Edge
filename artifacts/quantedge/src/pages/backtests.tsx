@@ -7,7 +7,13 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, Activity, Shield, Zap, ChevronDown, ChevronUp, Award } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, Shield, Zap, ChevronDown, ChevronUp, Award, Plus, Play } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 const API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : `${BASE}/api`;
@@ -63,16 +69,49 @@ function DetailPanel({ id }: { id: number }) {
   const [loaded, setLoaded] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
 
-  if (!loaded && !loading) {
-    setLoading(true);
-    fetchDetail(id).then(d => { setData(d); setLoading(false); setLoaded(true); });
-  }
+  useEffect(() => {
+    let timeoutId: any;
+    let isMounted = true;
+    
+    async function fetchIt() {
+      if (!loaded && isMounted) setLoading(true);
+      try {
+        const d = await fetchDetail(id);
+        if (!isMounted) return;
+        setData(d);
+        setLoaded(true);
+        if ((d as any).status === "running" || (d as any).status === "pending") {
+           timeoutId = setTimeout(fetchIt, 3000);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    
+    fetchIt();
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [id]);
 
-  if (loading || !data) {
+  if (loading && !data) {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading scenario data…</div>;
   }
 
-  if ("error" in data || !data.equityCurve) {
+  if (data && ((data as any).status === "running" || (data as any).status === "pending")) {
+    return (
+      <div className="p-12 text-center flex flex-col items-center gap-4">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">Running ML Backtest Engine...</p>
+          <p className="text-xs text-muted-foreground animate-pulse">Downloading data and applying {data.forecastModel} model. This may take 2-5 minutes.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if ("error" in data! || !data!.equityCurve) {
     return <div className="p-8 text-center text-red-400">Failed to load backtest data: {(data as any).error || "Missing data"}</div>;
   }
 
@@ -356,9 +395,107 @@ export default function Backtests() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Backtesting Engine</h1>
-        <p className="text-muted-foreground text-sm mt-1">Pre-built scenarios — 5 to 10 years of Indian equity history with ML model attribution</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Backtesting Engine</h1>
+          <p className="text-muted-foreground text-sm mt-1">Pre-built scenarios — 5 to 10 years of Indian equity history with ML model attribution</p>
+        </div>
+        
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" /> Run New Strategy
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Run New ML Backtest</DialogTitle>
+              <DialogDescription>
+                Execute a real historical backtest on Render. 
+                <span className="block mt-1 text-emerald-400">Tip: For optimal 2-5 min compute times, select 1-3 symbols, a 2-year timeframe, and XGBoost.</span>
+              </DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4 mt-2" onSubmit={async (e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              
+              // Process symbols, auto-append .NS
+              const rawSymbols = fd.get("symbols") as string;
+              const symbols = rawSymbols.split(",").map(s => {
+                let trimmed = s.trim().toUpperCase();
+                if (trimmed && !trimmed.endsWith(".NS")) trimmed += ".NS";
+                return trimmed;
+              }).filter(Boolean);
+
+              const payload = {
+                name: fd.get("name"),
+                symbols: symbols,
+                startDate: fd.get("startDate"),
+                endDate: fd.get("endDate"),
+                forecastModel: fd.get("forecastModel"),
+                optimizationMethod: fd.get("optimizationMethod")
+              };
+
+              try {
+                const res = await fetch(`${API}/backtests`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...authHdr() },
+                  body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                  window.location.reload();
+                }
+              } catch (err) {
+                console.error(err);
+              }
+            }}>
+              <div className="space-y-2">
+                <Label>Strategy Name</Label>
+                <Input name="name" required placeholder="e.g., Tech Momentum 2023" />
+              </div>
+              <div className="space-y-2">
+                <Label>Symbols (comma separated)</Label>
+                <Input name="symbols" required placeholder="TCS, INFY, RELIANCE" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Input type="date" name="startDate" required defaultValue="2022-01-01" />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Input type="date" name="endDate" required defaultValue="2023-12-31" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>ML Model</Label>
+                  <Select name="forecastModel" defaultValue="xgboost">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="xgboost">XGBoost (Fast)</SelectItem>
+                      <SelectItem value="arima">ARIMA</SelectItem>
+                      <SelectItem value="neural">Neural Network</SelectItem>
+                      <SelectItem value="ensemble">Ensemble (Slow)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Optimization</Label>
+                  <Select name="optimizationMethod" defaultValue="max_sharpe">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="max_sharpe">Max Sharpe</SelectItem>
+                      <SelectItem value="min_variance">Min Variance</SelectItem>
+                      <SelectItem value="risk_parity">Risk Parity</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button type="submit" className="w-full gap-2 mt-4"><Play className="h-4 w-4" /> Start Backtest Job</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Summary bar */}

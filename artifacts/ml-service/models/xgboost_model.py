@@ -54,36 +54,43 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     return feat.dropna()
 
 
+import os
+import joblib
+
 def forecast(df: pd.DataFrame, steps: int = 30) -> dict:
     """
-    Train XGBoost on engineered features, then multi-step forecast.
+    Load pre-trained XGBoost if available, else fallback to training dynamically.
     """
     closes = df["close"].values.astype(float)
+    symbol = df.name if hasattr(df, "name") else "unknown"
 
     try:
         feat = _build_features(df)
         X = feat.drop("target", axis=1).values
         y = feat["target"].values
 
-        # Train/test split (80/20)
+        # Train/test split (80/20) for metrics
         split = int(len(X) * 0.8)
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        scaler = StandardScaler()
-        X_train_s = scaler.fit_transform(X_train)
-        X_test_s  = scaler.transform(X_test)
+        # Check for pre-trained model
+        model_path = os.path.join(os.path.dirname(__file__), "..", "saved_models", f"{symbol}_xgboost.pkl")
+        if os.path.exists(model_path):
+            saved = joblib.load(model_path)
+            model = saved["model"]
+            scaler = saved["scaler"]
+            X_test_s = scaler.transform(X_test)
+        else:
+            scaler = StandardScaler()
+            X_train_s = scaler.fit_transform(X_train)
+            X_test_s  = scaler.transform(X_test)
 
-        model = xgb.XGBRegressor(
-            n_estimators=200,
-            max_depth=4,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42,
-            verbosity=0,
-        )
-        model.fit(X_train_s, y_train)
+            model = xgb.XGBRegressor(
+                n_estimators=200, max_depth=4, learning_rate=0.05,
+                subsample=0.8, colsample_bytree=0.8, random_state=42, verbosity=0
+            )
+            model.fit(X_train_s, y_train)
 
         y_pred_test = model.predict(X_test_s)
 
