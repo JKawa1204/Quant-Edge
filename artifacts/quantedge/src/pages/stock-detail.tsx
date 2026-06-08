@@ -60,7 +60,13 @@ export default function StockDetail() {
     return () => clearTimeout(t);
   }, [symbol]);
 
-  if (sLoad || fLoad) return <div>Loading...</div>;
+  if (sLoad || fLoad) return (
+    <div className="flex flex-col items-center justify-center py-32 space-y-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <p className="text-muted-foreground animate-pulse font-medium">Processing ML Forecast...</p>
+      <p className="text-xs text-muted-foreground">This will be loaded in sometime as models evaluate the latest data.</p>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

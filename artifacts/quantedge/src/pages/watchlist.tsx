@@ -29,16 +29,27 @@ export default function Watchlist() {
           const data = await res.json();
           setAllStocks(data);
           
-          // Fetch ML Signals for the top 15 stocks to avoid heavy computation at once
-          const topSymbols = data.slice(0, 15).map((s: any) => s.symbol).join(",");
-          const mlRes = await fetch(`${baseUrl}/api/signals?symbols=${topSymbols}`, { headers });
-          if (mlRes.ok) {
-            const mlData = await mlRes.json();
-            const signalMap: Record<string, any> = {};
-            mlData.forEach((item: any) => {
-              signalMap[item.symbol.replace(".NS", "")] = item;
-            });
-            setMlSignals(signalMap);
+          // Fetch sequentially to prevent backend overload and provide progressive UI updates
+          const topSymbols = data.slice(0, 15).map((s: any) => s.symbol);
+          const signalMap: Record<string, any> = {};
+          
+          for (const sym of topSymbols) {
+            try {
+              const mlRes = await fetch(`${baseUrl}/api/signals?symbols=${sym}`, { headers });
+              if (mlRes.ok) {
+                const mlData = await mlRes.json();
+                if (mlData && mlData.length > 0) {
+                  const item = mlData[0];
+                  signalMap[item.symbol.replace(".NS", "")] = item;
+                  // Update state immediately so UI reflects progress
+                  setMlSignals({ ...signalMap });
+                }
+              }
+              // Wait 1 second before querying the next stock
+              await new Promise(r => setTimeout(r, 1000));
+            } catch (err) {
+              console.error(`Failed to fetch ML signal for ${sym}`, err);
+            }
           }
         }
       } catch (e) {

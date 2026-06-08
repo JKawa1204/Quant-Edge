@@ -119,6 +119,11 @@ def main():
             train_arima(symbol, df)
             
             log.info(f"Successfully saved pre-trained models for {symbol}.")
+            
+            # Wait 1 full second to let CPU/RAM breathe before the next stock starts
+            import time
+            time.sleep(1)
+            
         except Exception as e:
             log.error(f"Failed training for {symbol}: {e}")
 

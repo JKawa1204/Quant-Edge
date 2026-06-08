@@ -8,7 +8,50 @@ import { Link } from "wouter";
 import { ChevronDown, ChevronUp, BarChart3, Shield, Brain } from "lucide-react";
 
 export default function Signals() {
-  const { data: signals, isLoading } = useGetSignals({ query: { queryKey: getGetSignalsQueryKey() } });
+  const [signals, setSignals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  React.useEffect(() => {
+    let mounted = true;
+    const fetchProgressive = async () => {
+      try {
+        const token = localStorage.getItem("quantedge_token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const baseUrl = import.meta.env.VITE_API_URL || "";
+        
+        // Fetch top stocks first
+        const res = await fetch(`${baseUrl}/api/stocks/search?q=`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const topSymbols = data.slice(0, 10).map((s: any) => s.symbol);
+        
+        setIsLoading(false); // We have symbols, stop overall loading
+        
+        const localSignals: any[] = [];
+        for (const sym of topSymbols) {
+          if (!mounted) break;
+          try {
+            const sigRes = await fetch(`${baseUrl}/api/signals?symbols=${sym}`, { headers });
+            if (sigRes.ok) {
+              const sigData = await sigRes.json();
+              if (sigData && sigData.length > 0) {
+                localSignals.push(sigData[0]);
+                setSignals([...localSignals]);
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to fetch signal for ${sym}`, err);
+          }
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      } catch (err) {
+        console.error(err);
+        setIsLoading(false);
+      }
+    };
+    fetchProgressive();
+    return () => { mounted = false; };
+  }, []);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [explanations, setExplanations] = useState<Record<number, any>>({});
   const [loadingExpl, setLoadingExpl] = useState<Record<number, boolean>>({});
@@ -60,7 +103,12 @@ export default function Signals() {
       }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <p className="text-muted-foreground animate-pulse">Initializing Trading Engine...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

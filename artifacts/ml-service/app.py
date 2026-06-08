@@ -147,6 +147,8 @@ def forecast_batch():
             results[symbol] = _run_forecast(symbol)
         except Exception as e:
             results[symbol] = {"error": str(e)}
+        import time
+        time.sleep(1) # prevent CPU overload
 
     return jsonify(results)
 
@@ -241,6 +243,9 @@ def signals():
             })
         except Exception as e:
             log.warning("signal error for %s: %s", symbol, e)
+            
+        import time
+        time.sleep(1) # delay to prevent CPU limits/OOM on Render
 
     # Sort by confidence descending
     out.sort(key=lambda x: x["confidence"], reverse=True)
@@ -275,6 +280,9 @@ def model_performance():
                 if m.get("directionalAccuracy"): s["da"].append(m["directionalAccuracy"])
         except Exception:
             pass
+            
+        import time
+        time.sleep(1) # prevent CPU limits/OOM on Render
 
     result = []
     for model_name, s in stats.items():
