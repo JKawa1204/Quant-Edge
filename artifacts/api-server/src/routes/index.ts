@@ -14,14 +14,14 @@ import analyticsRouter from "./analytics";
 import backtestsRouter from "./backtests";
 import marketRouter from "./market";
 import aiCommentaryRouter from "./aiCommentary";
-import upstoxRouter from "./upstox";
+import iciciRouter from "./icici";
 import autoTradingRouter from "./autoTrading";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
-router.use(upstoxRouter);
+router.use(iciciRouter);
 router.use(dashboardRouter);
 router.use(portfolioRouter);
 router.use(holdingsRouter);

@@ -19,6 +19,7 @@ import Analytics from "@/pages/analytics";
 import Backtests from "@/pages/backtests";
 import Regime from "@/pages/regime";
 import StockDetail from "@/pages/stock-detail";
+import IciciCallback from "@/pages/icici-callback";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/icici-callback" component={IciciCallback} />
       
       <Route path="/">
         {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}

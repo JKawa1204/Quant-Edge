@@ -70,7 +70,12 @@ function getDayPrice(symbol: string, daysAgo: number = 0): number {
   return Math.round(price * 100) / 100;
 }
 
+import { currentPrices } from "./iciciWebsocket.js";
+
 export function getCurrentPrice(symbol: string): number {
+  if (currentPrices && currentPrices.has(symbol)) {
+    return currentPrices.get(symbol)!;
+  }
   const base = NIFTY_STOCKS[symbol]?.basePrice ?? 1000;
   const now = Date.now();
   const minuteSeed = Math.floor(now / 60000);

@@ -833,14 +833,32 @@ export default function Dashboard() {
     <div className="space-y-8">
 
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-          <BrainCircuit className="h-7 w-7 text-primary" />
-          QUANTEDGE
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          ML forecasting pipeline for Indian equity markets — ARIMA · XGBoost · Neural Net · Ensemble
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <BrainCircuit className="h-7 w-7 text-primary" />
+            QUANTEDGE
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            ML forecasting pipeline for Indian equity markets — ARIMA · XGBoost · Neural Net · Ensemble
+          </p>
+        </div>
+        <button 
+          onClick={async () => {
+            try {
+              const res = await fetch(`${API}/icici/auth`, { headers: authHeaders() });
+              const data = await res.json();
+              if (data.url) window.location.href = data.url;
+              else alert(data.error || "Failed to initiate ICICI login");
+            } catch (err) {
+              alert("Network error connecting to broker");
+            }
+          }}
+          className="bg-[#D9381E] hover:bg-[#b02d18] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+        >
+          <Activity className="h-4 w-4" />
+          Connect ICICI Direct
+        </button>
       </div>
 
       {/* KPI strip */}

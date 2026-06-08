@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { WebSocketServer } from "ws";
-import { connectUpstoxWSS, marketEventBus } from "./lib/upstoxWebsocket";
+import { connectIciciWSS, marketEventBus } from "./lib/iciciWebsocket";
 
 const rawPort = process.env["PORT"];
 
@@ -25,8 +25,8 @@ const server = app.listen(port, async (err?: any) => {
 
   logger.info({ port }, "Server listening");
   
-  // Start the Upstox Market Data Feed connection (falls back to simulation if no token)
-  await connectUpstoxWSS(null); // Passing null initiates fallback until user explicitly auths
+  // Start the Icici Market Data Feed connection (falls back to simulation if no token)
+  await connectIciciWSS();
 
   // Attach a WebSocket Server for frontend clients
   const wss = new WebSocketServer({ server });
