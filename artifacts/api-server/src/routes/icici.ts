@@ -1,24 +1,21 @@
 import { Router } from "express";
-import { requireAuth } from "../middlewares/requireAuth.js";
-import { db, iciciTokensTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { requireAuth, type AuthReq } from "../lib/auth";
 // @ts-ignore
 import { BreezeConnect } from "breezeconnect";
-import { connectIciciWSS, stopIciciWSS } from "../lib/iciciWebsocket.js";
+import { connectIciciWSS, stopIciciWSS, setIciciSessionToken, getIciciSessionToken } from "../lib/iciciWebsocket.js";
 
 const router = Router();
-type AuthReq = import("express").Request & { userId: number };
 
 // Utility: To interact with ICICI Breeze, we usually instantiate BreezeConnect.
-export async function getBreezeInstance(userId: number) {
-  const [row] = await db.select().from(iciciTokensTable).where(eq(iciciTokensTable.userId, userId));
-  if (!row) throw new Error("Not authenticated with ICICI Direct");
+export async function getBreezeInstance() {
+  const sessionToken = getIciciSessionToken();
+  if (!sessionToken) throw new Error("Not authenticated with ICICI Direct");
 
   const appKey = process.env.ICICI_APP_KEY;
   if (!appKey) throw new Error("ICICI_APP_KEY not configured");
 
   const breeze = new BreezeConnect({ appKey });
-  await breeze.generateSession(process.env.ICICI_SECRET_KEY, row.sessionToken);
+  await breeze.generateSession(process.env.ICICI_SECRET_KEY, sessionToken);
   
   return breeze;
 }
@@ -49,17 +46,8 @@ router.post("/icici/callback", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    const userId = (req as AuthReq).userId;
-
-    // First, delete any existing tokens for this user to avoid duplicate constraint issues
-    await db.delete(iciciTokensTable).where(eq(iciciTokensTable.userId, userId));
-
-    // Then insert the new session token
-    await db.insert(iciciTokensTable).values({
-      userId: userId,
-      sessionToken: apisession,
-      updatedAt: new Date(),
-    });
+    // Save the session token in memory
+    setIciciSessionToken(apisession);
 
     // Reconnect WebSocket Feed globally using the new token
     stopIciciWSS();
@@ -73,30 +61,28 @@ router.post("/icici/callback", requireAuth, async (req, res): Promise<void> => {
 
 /**
  * 3. GET /api/icici/status
+ * Returns { connected: boolean } based on whether the server has an active ICICI token in memory.
  */
 router.get("/icici/status", requireAuth, async (req, res): Promise<void> => {
-  const userId = (req as AuthReq).userId;
-  const configured = !!process.env.ICICI_APP_KEY && !!process.env.ICICI_SECRET_KEY;
-
-  try {
-    const [row] = await db.select().from(iciciTokensTable).where(eq(iciciTokensTable.userId, userId));
-    if (!row) {
-      res.json({ connected: false, configured, message: "Not authenticated. Visit /api/icici/auth to connect." });
-      return;
-    }
-    res.json({ connected: true, configured, message: "ICICI Direct is connected." });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
+  const token = getIciciSessionToken();
+  res.json({ connected: !!token });
 });
 
 /**
  * 4. DELETE /api/icici/disconnect
  */
-router.delete("/icici/disconnect", requireAuth, async (req, res): Promise<void> => {
-  const userId = (req as AuthReq).userId;
-  await db.delete(iciciTokensTable).where(eq(iciciTokensTable.userId, userId));
-  res.json({ success: true, message: "Disconnected from ICICI Direct." });
+router.post("/icici/disconnect", requireAuth, async (req, res): Promise<void> => {
+  try {
+    setIciciSessionToken(null);
+    stopIciciWSS();
+    
+    // Optionally restart the dummy feed so the frontend still shows simulated prices
+    await connectIciciWSS();
+
+    res.json({ success: true, message: "Disconnected from ICICI Direct." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

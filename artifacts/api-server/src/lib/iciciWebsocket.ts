@@ -1,7 +1,6 @@
 import { EventEmitter } from "events";
 import { logger } from "./logger.js";
 import { getAllSymbols, getStockInfo } from "./marketData.js";
-import { db, iciciTokensTable } from "@workspace/db";
 // @ts-ignore
 import { BreezeConnect } from "breezeconnect";
 
@@ -33,6 +32,15 @@ export const currentPrices = new Map<string, number>();
 
 let breeze: any = null;
 let fallbackInterval: NodeJS.Timeout | null = null;
+let activeSessionToken: string | null = null;
+
+export function getIciciSessionToken(): string | null {
+  return activeSessionToken;
+}
+
+export function setIciciSessionToken(token: string | null) {
+  activeSessionToken = token;
+}
 
 export async function connectIciciWSS() {
   const appKey = process.env.ICICI_APP_KEY;
@@ -45,16 +53,12 @@ export async function connectIciciWSS() {
   }
 
   try {
-    // We connect using the first user's session token for the global market feed.
-    // In a multi-tenant app, you'd handle feeds separately per user, or use a master service account.
-    const rows = await db.select().from(iciciTokensTable).limit(1);
-    if (rows.length === 0) {
-      logger.info("No user has authenticated with ICICI yet. Starting simulated WebSocket fallback feed.");
+    const masterToken = getIciciSessionToken();
+    if (!masterToken) {
+      logger.info("No active ICICI session token in memory. Starting simulated WebSocket fallback feed.");
       startSimulatedFeed();
       return;
     }
-
-    const masterToken = rows[0].sessionToken;
 
     breeze = new BreezeConnect({ appKey });
     await breeze.generateSession(secretKey, masterToken);
