@@ -34,6 +34,16 @@ const server = app.listen(port, async (err?: any) => {
   wss.on("connection", (ws) => {
     logger.info("New frontend client connected to WebSocket.");
     ws.send(JSON.stringify({ type: "CONNECTION_ESTABLISHED" }));
+
+    // Immediately push all cached closing/current prices to the newly connected frontend
+    import("./lib/iciciWebsocket").then(({ currentPrices }) => {
+      for (const [symbol, price] of currentPrices.entries()) {
+        ws.send(JSON.stringify({
+          type: "PRICE_UPDATE",
+          data: { symbol, price, timestamp: Date.now() }
+        }));
+      }
+    });
   });
 
   // Broadcast price updates to all connected frontend clients

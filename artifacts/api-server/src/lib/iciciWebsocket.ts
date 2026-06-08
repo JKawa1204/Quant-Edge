@@ -34,6 +34,10 @@ let breeze: any = null;
 let fallbackInterval: NodeJS.Timeout | null = null;
 let activeSessionToken: string | null = null;
 
+export function getBreezeInstance(): any {
+  return breeze;
+}
+
 export function getIciciSessionToken(): string | null {
   return activeSessionToken;
 }
