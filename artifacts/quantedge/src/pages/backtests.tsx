@@ -96,14 +96,18 @@ function DetailPanel({ id }: { id: number }) {
     return undefined;
   }, [loaded, data, aiInsight]);
 
-  const { metrics, equityCurve, monthlyReturns, modelComparison, portfolioWeights } = data;
+  const metrics = data?.metrics || {} as any;
+  const equityCurve = data?.equityCurve || [];
+  const monthlyReturns = data?.monthlyReturns || [];
+  const modelComparison = data?.modelComparison || [];
+  const portfolioWeights = data?.portfolioWeights || [];
 
   const curveEvery = Math.max(1, Math.floor(equityCurve.length / 120));
   const chartData = equityCurve.filter((_, i) => i % curveEvery === 0).map(p => ({
     date: p.date,
-    Strategy: Math.round(p.strategy / 1000) / 1,
-    Benchmark: Math.round(p.benchmark / 1000) / 1,
-    Drawdown: p.drawdown,
+    Strategy: Math.round((p.strategy || 0) / 1000) / 1,
+    Benchmark: Math.round((p.benchmark || 0) / 1000) / 1,
+    Drawdown: p.drawdown || 0,
   }));
 
   const years = [...new Set(monthlyReturns.map(m => m.year))].sort();
@@ -115,18 +119,18 @@ function DetailPanel({ id }: { id: number }) {
       {/* Summary metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
         {[
-          { label: "Total Return", value: pct(metrics.totalReturn), positive: metrics.totalReturn > 0 },
-          { label: "CAGR", value: pct(metrics.cagr), positive: true },
-          { label: "Sharpe", value: metrics.sharpeRatio.toFixed(2), positive: metrics.sharpeRatio > 1 },
-          { label: "Sortino", value: metrics.sortinoRatio.toFixed(2), positive: metrics.sortinoRatio > 1 },
-          { label: "Max Drawdown", value: pct(metrics.maxDrawdown), positive: false },
-          { label: "Alpha", value: pct(metrics.alpha), positive: true },
-          { label: "Beta", value: metrics.beta.toFixed(2), positive: undefined },
-          { label: "Win Rate", value: `${metrics.winRate}%`, positive: metrics.winRate > 55 },
-          { label: "Profit Factor", value: metrics.profitFactor.toFixed(2), positive: metrics.profitFactor > 1.5 },
-          { label: "Ann. Vol", value: pct(metrics.annualizedVol), positive: undefined },
-          { label: "Info Ratio", value: metrics.informationRatio.toFixed(2), positive: metrics.informationRatio > 0.8 },
-          { label: "vs Benchmark", value: pct(metrics.totalReturn - metrics.benchmarkReturn), positive: metrics.totalReturn > metrics.benchmarkReturn },
+          { label: "Total Return", value: pct(metrics?.totalReturn || 0), positive: (metrics?.totalReturn || 0) > 0 },
+          { label: "CAGR", value: pct(metrics?.cagr || 0), positive: true },
+          { label: "Sharpe", value: (metrics?.sharpeRatio || 0).toFixed(2), positive: (metrics?.sharpeRatio || 0) > 1 },
+          { label: "Sortino", value: (metrics?.sortinoRatio || 0).toFixed(2), positive: (metrics?.sortinoRatio || 0) > 1 },
+          { label: "Max Drawdown", value: pct(metrics?.maxDrawdown || 0), positive: false },
+          { label: "Alpha", value: pct(metrics?.alpha || 0), positive: true },
+          { label: "Beta", value: (metrics?.beta || 0).toFixed(2), positive: undefined },
+          { label: "Win Rate", value: `${metrics?.winRate || 0}%`, positive: (metrics?.winRate || 0) > 55 },
+          { label: "Profit Factor", value: (metrics?.profitFactor || 0).toFixed(2), positive: (metrics?.profitFactor || 0) > 1.5 },
+          { label: "Ann. Vol", value: pct(metrics?.annualizedVol || 0), positive: undefined },
+          { label: "Info Ratio", value: (metrics?.informationRatio || 0).toFixed(2), positive: (metrics?.informationRatio || 0) > 0.8 },
+          { label: "vs Benchmark", value: pct((metrics?.totalReturn || 0) - (metrics?.benchmarkReturn || 0)), positive: (metrics?.totalReturn || 0) > (metrics?.benchmarkReturn || 0) },
         ].map(m => (
           <Card key={m.label} className="py-3 px-4">
             <MetricPill label={m.label} value={m.value} positive={m.positive} />

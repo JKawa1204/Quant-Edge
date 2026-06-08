@@ -37,7 +37,8 @@ def on_open(ws):
 
 def run_ws():
     # Connect to the local Node.js Express WebSocket server that broadcasts Upstox/Simulated data
-    ws_url = "ws://localhost:3000"
+    import os
+    ws_url = os.getenv("MARKET_DATA_WS_URL", "ws://localhost:4000")
     ws = websocket.WebSocketApp(ws_url,
                               on_open=on_open,
                               on_message=on_message,
