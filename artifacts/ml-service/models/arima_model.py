@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import warnings
 from statsmodels.tsa.arima.model import ARIMA
-import pmdarima as pm
 import os
 import joblib
 from sklearn.metrics import mean_squared_error, mean_absolute_error
