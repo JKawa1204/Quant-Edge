@@ -440,7 +440,7 @@ def rank_stocks(symbols: Optional[list[str]] = None) -> list[dict]:
             arima = arima_forecast(df, steps=30)
             xgb = xgb_forecast(df, steps=30)
             nn = nn_forecast(df, steps=30)
-            ens = ens_module.combine(arima, xgb, nn)
+            ens = ens_module.combine(arima, xgb, nn, current)
             regime = detect_regime(df)
 
             forecast_return = (ens["nextWeek"] - current) / current

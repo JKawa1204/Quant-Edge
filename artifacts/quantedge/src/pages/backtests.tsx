@@ -95,6 +95,26 @@ function DetailPanel({ id }: { id: number }) {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (loaded && data && !("error" in data) && data.equityCurve && !aiInsight) {
+      const t = setTimeout(() => {
+        fetch(`${API}/ai/commentary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHdr() },
+          body: JSON.stringify({ 
+            type: "backtest strategy", 
+            context: `Strategy CAGR: ${data.metrics?.cagr || 0}%, Sharpe: ${data.metrics?.sharpeRatio || 0}, Max DD: ${data.metrics?.maxDrawdown || 0}%, Win Rate: ${data.metrics?.winRate || 0}%.`
+          })
+        })
+        .then(r => r.json())
+        .then(d => { if (d.text) setAiInsight(d.text); else setAiInsight("Failed to load insights."); })
+        .catch(() => setAiInsight("Failed to load insights."));
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [loaded, data, aiInsight]);
+
   if (loading && !data) {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading scenario data…</div>;
   }
@@ -114,26 +134,6 @@ function DetailPanel({ id }: { id: number }) {
   if (!data || "error" in data || !data.equityCurve) {
     return <div className="p-8 text-center text-red-400">Failed to load backtest data: {data ? (data as any).error : "Unknown error"}</div>;
   }
-
-  useEffect(() => {
-    if (loaded && data && !aiInsight) {
-      const t = setTimeout(() => {
-        fetch(`${API}/ai/commentary`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHdr() },
-          body: JSON.stringify({ 
-            type: "backtest strategy", 
-            context: `Strategy CAGR: ${data.metrics.cagr}%, Sharpe: ${data.metrics.sharpeRatio}, Max DD: ${data.metrics.maxDrawdown}%, Win Rate: ${data.metrics.winRate}%.`
-          })
-        })
-        .then(r => r.json())
-        .then(d => { if (d.text) setAiInsight(d.text); else setAiInsight("Failed to load insights."); })
-        .catch(() => setAiInsight("Failed to load insights."));
-      }, 3000);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [loaded, data, aiInsight]);
 
   const metrics = data?.metrics || {} as any;
   const equityCurve = data?.equityCurve || [];
