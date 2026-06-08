@@ -613,26 +613,23 @@ function TradeModal({
   currentPrice?: number; livePrices?: Record<string, number>; onClose: () => void; onDone: () => void;
 }) {
   const [sym, setSym]       = useState(symbol ?? "");
-  const [qty, setQty]       = useState(1);
-  const [price, setPrice]   = useState(currentPrice ?? 0);
+  const [qtyStr, setQtyStr] = useState("1");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    const livePrice = currentPrice || (livePrices && sym ? livePrices[sym.toUpperCase()] : 0);
-    if (livePrice && livePrice > 0) {
-      setPrice(livePrice);
-    }
-  }, [currentPrice, livePrices, sym]);
+  const qty = parseInt(qtyStr) || 0;
+  
+  // Calculate price dynamically from live feed, fallback to 1500
+  const currentLivePrice = currentPrice || (livePrices && sym ? livePrices[sym.toUpperCase()] : 0) || 1500;
 
   async function submit() {
-    if (!sym || qty < 1 || price <= 0) return;
+    if (!sym || qty < 1) return;
     setLoading(true); setError(""); setSuccess("");
     try {
       const data = await apiFetch(`/portfolio/${mode}`, {
         method: "POST",
-        body: JSON.stringify({ symbol: sym.toUpperCase(), quantity: qty, price }),
+        body: JSON.stringify({ symbol: sym.toUpperCase(), quantity: qty, price: currentLivePrice }),
       });
       setSuccess(data.message ?? "Done!");
       setTimeout(() => { onDone(); }, 900);
@@ -672,26 +669,21 @@ function TradeModal({
             <input
               type="number" min={1} max={mode === "sell" ? maxQty : undefined}
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
-              value={qty} onChange={e => setQty(parseInt(e.target.value) || 1)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Price per share (₹)</label>
-            <input
-              type="number" step="0.01" min={0.01}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary disabled:opacity-50"
-              value={price} onChange={e => setPrice(parseFloat(e.target.value) || 0)}
-              disabled={!!currentPrice}
-              readOnly={!!currentPrice}
+              value={qtyStr} onChange={e => setQtyStr(e.target.value)}
             />
           </div>
 
-          {price > 0 && qty > 0 && (
+          <div className="bg-muted/30 border border-border rounded-lg p-3 flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Market Price</span>
+            <span className="text-sm font-mono font-semibold text-primary">₹{currentLivePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          </div>
+
+          {qty > 0 && (
             <div className="bg-muted/40 rounded-lg p-3">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Total {mode === "buy" ? "cost" : "proceeds"}</span>
                 <span className="font-mono font-semibold">
-                  ₹{(price * qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  ₹{(currentLivePrice * qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -702,7 +694,7 @@ function TradeModal({
 
           <button
             onClick={submit}
-            disabled={loading || !sym || qty < 1 || price <= 0}
+            disabled={loading || !sym || qty < 1}
             className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
               mode === "buy"
                 ? "bg-green-600 hover:bg-green-500 text-white"
