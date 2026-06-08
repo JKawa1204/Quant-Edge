@@ -110,6 +110,34 @@ export async function connectIciciWSS() {
       }
     }
 
+    // Fetch initial quotes to populate prices immediately (especially post-market)
+    Object.entries(SYMBOL_TO_ICICI).forEach(([symbol, stockCode], index) => {
+      setTimeout(() => {
+        breeze.getQuotes({
+          stockCode: stockCode,
+          exchangeCode: "NSE",
+          productType: "cash"
+        }).then((res: any) => {
+          let data = res;
+          if (res && res.Success) data = Array.isArray(res.Success) ? res.Success[0] : res.Success;
+          else if (res && res.data) data = Array.isArray(res.data) ? res.data[0] : res.data;
+          
+          if (data) {
+            // Check all possible field names returned by ICICI
+            const price = Number(data.ltp || data.last || data.close_price || data.previous_close || data.close || 0);
+            if (price > 0) {
+              currentPrices.set(symbol, price);
+              marketEventBus.emit("price_update", {
+                symbol: symbol,
+                price: price,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }).catch(() => {});
+      }, index * 200); // 200ms delay between each to avoid rate limits
+    });
+
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");
   } catch (err: any) {
     logger.error("Failed to connect to ICICI Direct WebSocket:", err.message);
