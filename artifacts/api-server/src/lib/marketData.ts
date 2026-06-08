@@ -89,7 +89,7 @@ export function searchStocks(query: string) {
 
 export function getCandles(symbol: string, timeframe: string, limit: number = 100) {
   // Fallback has been removed, this is only here to satisfy TS types in other places if called.
-  return [];
+  return [] as any[];
 }
 
 export function getStockDetail(symbol: string) {

@@ -12,6 +12,7 @@ export default function Signals() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [explanations, setExplanations] = useState<Record<number, any>>({});
   const [loadingExpl, setLoadingExpl] = useState<Record<number, boolean>>({});
+  const [aiInsights, setAiInsights] = useState<Record<number, string>>({});
 
   const toggleExpand = async (id: number) => {
     if (expandedId === id) {
@@ -21,23 +22,42 @@ export default function Signals() {
     
     setExpandedId(id);
     
-    if (!explanations[id]) {
-      setLoadingExpl(prev => ({ ...prev, [id]: true }));
-      try {
-        const token = localStorage.getItem("quantedge_token");
-        const r = await fetch(`/api/signals/${id}/explain`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        if (r.ok) {
-          const data = await r.json();
-          setExplanations(prev => ({ ...prev, [id]: data }));
+      if (!explanations[id]) {
+        setLoadingExpl(prev => ({ ...prev, [id]: true }));
+        try {
+          const token = localStorage.getItem("quantedge_token");
+          const r = await fetch(`/api/signals/${id}/explain`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+          if (r.ok) {
+            const data = await r.json();
+            setExplanations(prev => ({ ...prev, [id]: data }));
+
+            // 3-second delay for Gemini
+            setTimeout(() => {
+              fetch(`/api/ai/signal-explanation`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ 
+                  symbol: data.symbol,
+                  action: data.action,
+                  metrics: `Confidence: ${data.confidence}%. Forecasting return of ${data.forecastReturn}%. Model consensus: ${data.ensembleReasoning}`
+                })
+              })
+              .then(r => r.json())
+              .then(d => { if (d.text) setAiInsights(prev => ({ ...prev, [id]: d.text })); })
+              .catch(console.error);
+            }, 3000);
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoadingExpl(prev => ({ ...prev, [id]: false }));
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoadingExpl(prev => ({ ...prev, [id]: false }));
       }
-    }
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -120,15 +140,32 @@ export default function Signals() {
                               </div>
                             </div>
                           ) : explanations[signal.id] ? (
-                            <div className="grid md:grid-cols-2 gap-6">
-                              {/* Left Column: Breakdowns */}
-                              <div className="space-y-6">
-                                {/* Model Breakdown */}
-                                <div>
-                                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                                    <BarChart3 className="h-4 w-4 text-primary" />
-                                    Model Breakdown
+                              <div className="grid md:grid-cols-2 gap-6">
+                                {/* Left Column: Breakdowns */}
+                                <div className="space-y-6">
+                                  {/* Gemini AI Insight */}
+                                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
+                                      <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                                      Gemini AI Reasoning
+                                    </div>
+                                    {!aiInsights[signal.id] ? (
+                                      <div className="space-y-2 mt-2">
+                                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                                        <div className="h-3 w-4/5 bg-muted animate-pulse rounded" />
+                                        <p className="text-[10px] text-muted-foreground mt-2 italic">Gemini is analyzing the signal...</p>
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm leading-relaxed text-foreground">{aiInsights[signal.id]}</p>
+                                    )}
                                   </div>
+
+                                  {/* Model Breakdown */}
+                                  <div>
+                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                                      <BarChart3 className="h-4 w-4 text-primary" />
+                                      Model Breakdown
+                                    </div>
                                   <div className="space-y-3">
                                     {Object.entries(explanations[signal.id].modelBreakdown || {}).map(([key, model]: [string, any]) => {
                                       const isArima = key === "arima";

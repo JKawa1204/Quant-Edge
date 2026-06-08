@@ -21,7 +21,7 @@ export default function Watchlist() {
     const fetchAll = async () => {
       try {
         const token = localStorage.getItem("quantedge_token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : "";
         const res = await fetch(`${baseUrl}/api/stocks/search?q=`, { headers });
         if (res.ok) {

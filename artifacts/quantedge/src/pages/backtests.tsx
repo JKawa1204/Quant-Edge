@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetBacktests } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,7 @@ function DetailPanel({ id }: { id: number }) {
   const [data, setData] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
 
   if (!loaded && !loading) {
     setLoading(true);
@@ -70,6 +71,26 @@ function DetailPanel({ id }: { id: number }) {
   if (loading || !data) {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading scenario data…</div>;
   }
+
+  useEffect(() => {
+    if (loaded && data && !aiInsight) {
+      const t = setTimeout(() => {
+        fetch(`${API}/ai/commentary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHdr() },
+          body: JSON.stringify({ 
+            type: "backtest strategy", 
+            context: `Strategy CAGR: ${data.metrics.cagr}%, Sharpe: ${data.metrics.sharpeRatio}, Max DD: ${data.metrics.maxDrawdown}%, Win Rate: ${data.metrics.winRate}%.`
+          })
+        })
+        .then(r => r.json())
+        .then(d => { if (d.text) setAiInsight(d.text); else setAiInsight("Failed to load insights."); })
+        .catch(() => setAiInsight("Failed to load insights."));
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [loaded, data, aiInsight]);
 
   const { metrics, equityCurve, monthlyReturns, modelComparison, portfolioWeights } = data;
 
@@ -108,6 +129,27 @@ function DetailPanel({ id }: { id: number }) {
           </Card>
         ))}
       </div>
+
+      {/* Gemini AI Insights */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            AI Strategy Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!aiInsight ? (
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-muted animate-pulse rounded" />
+              <div className="h-4 w-[90%] bg-muted animate-pulse rounded" />
+              <p className="text-xs text-muted-foreground mt-2 italic">Gemini is analyzing strategy performance...</p>
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed">{aiInsight}</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Equity curve */}
       <Card>
