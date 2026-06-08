@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { requireAuth, type AuthReq } from "../lib/auth";
+import { requireAuth } from "../middlewares/requireAuth.js";
+type AuthReq = import("express").Request & { userId: number };
 // @ts-ignore
 import { BreezeConnect } from "breezeconnect";
 import { connectIciciWSS, stopIciciWSS, setIciciSessionToken, getIciciSessionToken } from "../lib/iciciWebsocket.js";
