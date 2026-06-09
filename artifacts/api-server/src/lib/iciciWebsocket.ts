@@ -88,14 +88,16 @@ export async function connectIciciWSS() {
   const secretKey = process.env.ICICI_SECRET_KEY;
 
   if (!appKey || !secretKey) {
-    logger.info("No ICICI App Key / Secret Key found. Skipping WebSocket connection.");
+    logger.info("No ICICI App Key / Secret Key found. Falling back to simulated WebSocket feed.");
+    startSimulatedFeed();
     return;
   }
 
   try {
     const masterToken = getIciciSessionToken();
     if (!masterToken) {
-      logger.info("No active ICICI session token in memory. Skipping WebSocket connection.");
+      logger.info("No active ICICI session token in memory. Falling back to simulated WebSocket feed.");
+      startSimulatedFeed();
       return;
     }
 
@@ -192,7 +194,8 @@ export async function connectIciciWSS() {
 
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");
   } catch (err: any) {
-    logger.error("Failed to connect to ICICI Direct WebSocket:", err.message);
+    logger.error(`Failed to connect to ICICI Direct WebSocket: ${err.message}. Falling back to simulated feed.`);
+    startSimulatedFeed();
   }
 }
 

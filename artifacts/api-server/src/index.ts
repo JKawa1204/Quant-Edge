@@ -27,6 +27,9 @@ const server = app.listen(port, async (err?: any) => {
   
   // Start the Icici Market Data Feed connection (falls back to simulation if no token)
   await connectIciciWSS();
+  
+  // Start the High-Frequency Trading Background Worker
+  import("./lib/hftWorker").then(({ startHFTWorker }) => startHFTWorker());
 
   // Attach a WebSocket Server for frontend clients
   const wss = new WebSocketServer({ server });

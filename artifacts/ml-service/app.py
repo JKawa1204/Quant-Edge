@@ -51,11 +51,11 @@ from models.stress_test   import run_stress_test
 
 # ── Simple in-memory cache (avoids re-fitting on every request) ───────────────
 _cache: dict = {}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 14400  # 4 hours
 
 # ── Rankings cache (separate, longer TTL because ranking is expensive) ────────
 _rankings_cache: dict = {"data": None, "timestamp": 0}
-RANKINGS_CACHE_TTL = 600  # 10 minutes
+RANKINGS_CACHE_TTL = 14400  # 4 hours
 
 # Start the WebSocket client to receive live prices from Node.js
 from models.live_data import start_websocket_client_thread
@@ -82,7 +82,9 @@ def _run_forecast(symbol: str) -> dict:
     key = _cache_key(symbol)
     if key in _cache:
         log.info("cache hit: %s", symbol)
-        return _cache[key]
+        res = _cache[key].copy()
+        res["_cached"] = True
+        return res
 
     log.info("fitting models for %s", symbol)
     t0 = time.time()
@@ -113,8 +115,11 @@ def _run_forecast(symbol: str) -> dict:
     }
 
     _cache[key] = result
+    
+    res = result.copy()
+    res["_cached"] = False
     log.info("forecast complete for %s in %.1fms", symbol, result["computeMs"])
-    return result
+    return res
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -244,8 +249,10 @@ def signals():
         except Exception as e:
             log.warning("signal error for %s: %s", symbol, e)
             
-        import time
-        time.sleep(1) # delay to prevent CPU limits/OOM on Render
+        if not fc.get("_cached", False):
+            import time
+            time.sleep(1) # delay to prevent CPU limits/OOM on Render
+
 
     # Sort by confidence descending
     out.sort(key=lambda x: x["confidence"], reverse=True)
