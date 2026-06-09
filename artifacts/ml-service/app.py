@@ -409,7 +409,13 @@ def build_portfolio_route():
     risk_free_rate = risk_free_map.get(risk_tolerance, 0.065)
 
     try:
-        result = build_portfolio(count=count, method=method, risk_free_rate=risk_free_rate)
+        now = time.time()
+        if not (_rankings_cache["data"] is not None and now - _rankings_cache["timestamp"] < RANKINGS_CACHE_TTL):
+            log.info("build-portfolio: rankings cache empty or expired, ranking all stocks...")
+            _rankings_cache["data"] = rank_stocks()
+            _rankings_cache["timestamp"] = now
+
+        result = build_portfolio(count=count, method=method, risk_free_rate=risk_free_rate, precomputed_rankings=_rankings_cache["data"])
         result["riskTolerance"] = risk_tolerance
         result["riskFreeRate"] = risk_free_rate
         return jsonify(result)

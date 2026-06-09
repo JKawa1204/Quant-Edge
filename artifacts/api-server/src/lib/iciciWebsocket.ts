@@ -88,16 +88,14 @@ export async function connectIciciWSS() {
   const secretKey = process.env.ICICI_SECRET_KEY;
 
   if (!appKey || !secretKey) {
-    logger.info("No ICICI App Key / Secret Key found. Falling back to simulated WebSocket feed.");
-    startSimulatedFeed();
+    logger.info("No ICICI App Key / Secret Key found. Skipping WebSocket connection.");
     return;
   }
 
   try {
     const masterToken = getIciciSessionToken();
     if (!masterToken) {
-      logger.info("No active ICICI session token in memory. Falling back to simulated WebSocket feed.");
-      startSimulatedFeed();
+      logger.info("No active ICICI session token in memory. Skipping WebSocket connection.");
       return;
     }
 
@@ -108,7 +106,7 @@ export async function connectIciciWSS() {
     breeze.wsConnect();
 
     // Subscribe to events
-    breeze.on('ticks', (ticks: any) => {
+    breeze.onTicks = function(ticks: any) {
       const stockCode = ticks?.stock_code;
       if (stockCode && ICICI_TO_SYMBOL[stockCode]) {
         const symbol = ICICI_TO_SYMBOL[stockCode];
@@ -124,7 +122,7 @@ export async function connectIciciWSS() {
           timestamp: Date.now()
         });
       }
-    });
+    };
 
     // Subscribe feeds for all symbols we track
     for (const [symbol, stockCode] of Object.entries(SYMBOL_TO_ICICI)) {
@@ -194,39 +192,11 @@ export async function connectIciciWSS() {
 
     logger.info("Successfully connected to ICICI Direct Breeze WebSocket feed.");
   } catch (err: any) {
-    logger.error(`Failed to connect to ICICI Direct WebSocket: ${err.message}. Falling back to simulated feed.`);
-    startSimulatedFeed();
+    logger.error(`Failed to connect to ICICI Direct WebSocket: ${err.message}.`);
   }
 }
 
-function startSimulatedFeed() {
-  if (fallbackInterval) clearInterval(fallbackInterval);
 
-  const symbols = getAllSymbols();
-  for (const sym of symbols) {
-    if (!currentPrices.has(sym)) {
-      currentPrices.set(sym, getStockInfo(sym).basePrice || 1000);
-    }
-  }
-
-  fallbackInterval = setInterval(() => {
-    for (let i = 0; i < 3; i++) {
-      const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
-      const oldPrice = currentPrices.get(randomSymbol) || 1000;
-      
-      const fluctuation = oldPrice * (Math.random() - 0.5) * 0.001;
-      const newPrice = Math.round((oldPrice + fluctuation) * 100) / 100;
-      
-      currentPrices.set(randomSymbol, newPrice);
-      
-      marketEventBus.emit("price_update", {
-        symbol: randomSymbol,
-        price: newPrice,
-        timestamp: Date.now()
-      });
-    }
-  }, 1000);
-}
 
 export function stopIciciWSS() {
   if (breeze) {

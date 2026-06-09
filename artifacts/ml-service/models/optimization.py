@@ -472,13 +472,15 @@ def rank_stocks(symbols: Optional[list[str]] = None) -> list[dict]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def build_portfolio(count: int = 10, method: str = "hrp",
-                    risk_free_rate: float = 0.065) -> dict:
+                    risk_free_rate: float = 0.065,
+                    precomputed_rankings: Optional[list[dict]] = None) -> dict:
     """Pick top N stocks by confidence ranking, then optimize weights.
 
     Args:
         count: number of top stocks to include (default 10)
         method: optimization method - 'hrp' or 'markowitz'
         risk_free_rate: annualized risk-free rate
+        precomputed_rankings: optional list of pre-ranked stocks to skip expensive ML inference
 
     Returns:
         dict with:
@@ -489,7 +491,7 @@ def build_portfolio(count: int = 10, method: str = "hrp",
     t0 = time.time()
 
     # Rank all stocks
-    all_rankings = rank_stocks()
+    all_rankings = precomputed_rankings if precomputed_rankings is not None else rank_stocks()
 
     if not all_rankings:
         raise ValueError("No stocks could be ranked — forecasting failed for all")
