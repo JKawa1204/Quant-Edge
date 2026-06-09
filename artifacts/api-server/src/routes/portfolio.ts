@@ -363,7 +363,12 @@ router.post("/portfolio/optimize", requireAuth, async (req, res): Promise<void> 
       });
 
       if (!pyRes.ok) {
-        res.status(500).json({ error: "ML Service build portfolio failed" });
+        let errMsg = "ML Service build portfolio failed";
+        try {
+          const errData = await pyRes.json();
+          if (errData.error) errMsg = errData.error;
+        } catch(e) {}
+        res.status(pyRes.status === 503 ? 503 : 500).json({ error: errMsg });
         return;
       }
 

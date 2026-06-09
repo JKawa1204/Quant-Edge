@@ -64,6 +64,20 @@ start_websocket_client_thread()
 import threading
 from models.backtester import run_backtest_job
 
+def _warmup_cache_bg():
+    """Warms up the ML rankings cache in the background on startup."""
+    try:
+        log.info("Background cache warmup: ranking all stocks...")
+        t0 = time.time()
+        _rankings_cache["data"] = rank_stocks()
+        _rankings_cache["timestamp"] = time.time()
+        log.info("Background cache warmup complete in %.1fms", (time.time() - t0) * 1000)
+    except Exception as e:
+        log.error("Background cache warmup failed: %s", e)
+
+# Trigger the background warmup thread immediately
+threading.Thread(target=_warmup_cache_bg, daemon=True).start()
+
 @app.route("/ml/backtest", methods=["POST"])
 def trigger_backtest():
     payload = request.json
@@ -360,16 +374,7 @@ def rankings():
         log.info("rankings cache hit")
         ranked = _rankings_cache["data"]
     else:
-        log.info("computing fresh rankings for all stocks")
-        t0 = time.time()
-        try:
-            ranked = rank_stocks()
-            _rankings_cache["data"] = ranked
-            _rankings_cache["timestamp"] = now
-            log.info("rankings computed in %.1fms", (time.time() - t0) * 1000)
-        except Exception as e:
-            log.exception("rankings error")
-            return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "ML Models are currently warming up in the background. Please try again in 1 minute."}), 503
 
     # Optional limit
     limit = request.args.get("limit", type=int)
@@ -411,9 +416,7 @@ def build_portfolio_route():
     try:
         now = time.time()
         if not (_rankings_cache["data"] is not None and now - _rankings_cache["timestamp"] < RANKINGS_CACHE_TTL):
-            log.info("build-portfolio: rankings cache empty or expired, ranking all stocks...")
-            _rankings_cache["data"] = rank_stocks()
-            _rankings_cache["timestamp"] = now
+            return jsonify({"error": "ML Models are currently warming up in the background. Please try again in 1 minute."}), 503
 
         result = build_portfolio(count=count, method=method, risk_free_rate=risk_free_rate, precomputed_rankings=_rankings_cache["data"])
         result["riskTolerance"] = risk_tolerance
