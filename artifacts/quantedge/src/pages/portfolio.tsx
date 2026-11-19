@@ -193,30 +193,50 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
   const [optMethod, setOptMethod] = useState("markowitz");
   const [optLoading, setOptLoading] = useState(false);
   const [optResult, setOptResult] = useState<OptimizationResult | null>(null);
+  const [optError, setOptError] = useState<string | null>(null);
 
   // Build New Tab
   const [numStocks, setNumStocks] = useState(10);
   const [buildMethod, setBuildMethod] = useState("markowitz");
   const [buildLoading, setBuildLoading] = useState(false);
   const [buildResult, setBuildResult] = useState<NewPortfolioStock[] | null>(null);
+  const [buildError, setBuildError] = useState<string | null>(null);
 
   const runOptimization = async () => {
     setOptLoading(true);
     setOptResult(null);
+    setOptError(null);
     try {
       const r = await fetch(`${API}/portfolio/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ method: optMethod }),
       });
-      if (r.ok) {
-        const data = await r.json();
-        setOptResult(data as OptimizationResult);
-      } else {
-        console.error("Optimization failed");
+      const data = await r.json();
+      if (!r.ok) {
+        setOptError(data.error ?? "Optimization failed. Please try again.");
+        return;
       }
-    } catch (err) {
-      console.error(err);
+      // API returns { portfolio, allocations, ... } where allocations is the list
+      // Build an OptimizationResult from the response
+      const activeKey = optMethod === "hrp" ? "hrp" : "markowitz";
+      const methodData = data[activeKey] ?? data;
+      const allocations: OptimizationResult["allocations"] = (data.allocations ?? []).map((a: any) => ({
+        symbol: a.symbol,
+        company: a.company ?? a.symbol,
+        currentWeight: a.currentWeight ?? 0,
+        suggestedWeight: a.suggestedWeight ?? 0,
+        change: a.change ?? (a.suggestedWeight ?? 0) - (a.currentWeight ?? 0),
+      }));
+      setOptResult({
+        method: optMethod,
+        expectedReturn: methodData.expectedReturn ?? 0,
+        volatility: methodData.expectedVolatility ?? methodData.volatility ?? 0,
+        sharpeRatio: methodData.sharpeRatio ?? 0,
+        allocations,
+      });
+    } catch (err: any) {
+      setOptError(err.message ?? "Optimization failed. Please try again.");
     } finally {
       setOptLoading(false);
     }
@@ -225,20 +245,37 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
   const buildPortfolio = async () => {
     setBuildLoading(true);
     setBuildResult(null);
+    setBuildError(null);
     try {
       const r = await fetch(`${API}/portfolio/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ method: buildMethod, numStocks }),
       });
-      if (r.ok) {
-        const data = await r.json();
-        setBuildResult(data.portfolio as NewPortfolioStock[]);
-      } else {
-        console.error("Build failed");
+      const data = await r.json();
+      if (!r.ok) {
+        setBuildError(data.error ?? "Build portfolio failed. Please try again.");
+        return;
       }
-    } catch (err) {
-      console.error(err);
+      // API returns a flat array of allocation objects when numStocks > 0
+      const stocks: NewPortfolioStock[] = (Array.isArray(data) ? data : data.portfolio ?? data.allocations ?? []).map(
+        (s: any, idx: number) => ({
+          rank: s.rank ?? idx + 1,
+          symbol: s.symbol,
+          company: s.company ?? s.symbol,
+          sector: s.sector ?? "—",
+          confidence: s.confidence ?? 0,
+          suggestedWeight: s.suggestedWeight ?? 0,
+          expectedContribution: s.expectedContribution ?? 0,
+        })
+      );
+      if (stocks.length === 0) {
+        setBuildError("No stocks returned. The ML service may still be warming up — please wait a minute and try again.");
+        return;
+      }
+      setBuildResult(stocks);
+    } catch (err: any) {
+      setBuildError(err.message ?? "Build portfolio failed. Please try again.");
     } finally {
       setBuildLoading(false);
     }
@@ -308,6 +345,12 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
               <div className="space-y-3">
                 <Skeleton className="h-20 w-full rounded-lg" />
                 <Skeleton className="h-40 w-full rounded-lg" />
+              </div>
+            )}
+
+            {optError && !optLoading && (
+              <div className="bg-destructive/15 border border-destructive/30 rounded-lg p-4 text-sm text-destructive">
+                ⚠ {optError}
               </div>
             )}
 
@@ -491,6 +534,12 @@ function PortfolioOptimizer({ holdings }: { holdings: any[] }) {
               <div className="space-y-3">
                 <Skeleton className="h-8 w-full rounded-lg" />
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+              </div>
+            )}
+
+            {buildError && !buildLoading && (
+              <div className="bg-destructive/15 border border-destructive/30 rounded-lg p-4 text-sm text-destructive">
+                ⚠ {buildError}
               </div>
             )}
 
